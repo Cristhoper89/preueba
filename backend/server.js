@@ -10,13 +10,14 @@ const PORT = Number(process.env.PORT || 3000);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const landingPath = path.join(__dirname, '..', 'lading-page', 'public');
 const marketingPath = path.join(__dirname, '..', 'control-marketing');
+const serveFrontend = process.env.SERVE_FRONTEND !== 'false';
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '20kb' }));
-app.use(express.static(landingPath));
+if (serveFrontend) app.use(express.static(landingPath));
 registerMarketingRoutes(app, pool);
 registerCustomerAuth(app, pool);
-app.use('/marketing', express.static(marketingPath));
+if (serveFrontend) app.use('/marketing', express.static(marketingPath));
 
 const clean = (value, max = 160) => String(value || '').trim().slice(0, max);
 
@@ -41,6 +42,8 @@ app.post('/api/events', async (req, res) => {
   } catch (error) { console.error('event insert failed:', error.message); res.status(500).json({ error: 'No se pudo registrar el evento.' }); }
 });
 
-app.get('*', (_req, res) => res.sendFile(path.join(landingPath, 'index.html')));
+if (serveFrontend) {
+  app.get('*', (_req, res) => res.sendFile(path.join(landingPath, 'index.html')));
+}
 
 app.listen(PORT, () => console.log(`Café Aurora disponible en http://localhost:${PORT}`));

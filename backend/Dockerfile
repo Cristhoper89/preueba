@@ -7,10 +7,9 @@ RUN npm ci --omit=dev
 
 COPY backend/customer-auth.js backend/marketing.js backend/schema.sql backend/server.js ./
 COPY backend/scripts ./scripts
-COPY control-marketing /app/control-marketing
-COPY lading-page/public /app/lading-page/public
 
 ENV NODE_ENV=production
+ENV SERVE_FRONTEND=false
 EXPOSE 3000
 
 CMD ["npm", "start"]

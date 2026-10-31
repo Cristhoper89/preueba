@@ -35,7 +35,7 @@ El proyecto incluye un Dockerfile para cada carpeta y un `docker-compose.yml` pa
 docker compose up --build
 ```
 
-La landing queda disponible en `http://localhost:8081`, el panel en `http://localhost:8080` y el backend en `http://localhost:3000`. Las interfaces web envían sus solicitudes `/api/` al servicio `backend` de Compose.
+La landing queda disponible en `http://localhost:8081`, el panel en `http://localhost:8080` y el backend en `http://localhost:3000`. Las interfaces web envían sus solicitudes `/api/` al servicio `backend` de Compose. La imagen `backend/Dockerfile` ejecuta únicamente la API; no incluye ni sirve los archivos de la landing o del panel. Para publicar solo la API en Coolify, configura el puerto `3000`.
 
 ### Coolify
 
