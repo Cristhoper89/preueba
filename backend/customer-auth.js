@@ -48,8 +48,7 @@ function getCookie(req, name) {
 }
 
 function setSessionCookie(res, token) {
-  const sameSite = process.env.NODE_ENV === 'production' ? 'SameSite=None' : 'SameSite=Strict';
-  const parts = [`aurora_customer_session=${token}`, 'Path=/', 'HttpOnly', sameSite, `Max-Age=${SESSION_DAYS * 86400}`];
+  const parts = [`aurora_customer_session=${token}`, 'Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${SESSION_DAYS * 86400}`];
   if (process.env.NODE_ENV === 'production') parts.push('Secure');
   res.set('Set-Cookie', parts.join('; '));
 }
@@ -281,8 +280,7 @@ function registerCustomerAuth(app, pool) {
     if (/^[a-f0-9]{64}$/i.test(token)) {
       await pool.query('DELETE FROM user_sessions WHERE token_hash = $1', [digest(token)]);
     }
-    const sameSite = process.env.NODE_ENV === 'production' ? 'SameSite=None' : 'SameSite=Strict';
-    const parts = ['aurora_customer_session=', 'Path=/', 'HttpOnly', sameSite, 'Max-Age=0'];
+    const parts = ['aurora_customer_session=', 'Path=/', 'HttpOnly', 'SameSite=Strict', 'Max-Age=0'];
     if (process.env.NODE_ENV === 'production') parts.push('Secure');
     res.set('Set-Cookie', parts.join('; '));
     res.json({ ok: true });

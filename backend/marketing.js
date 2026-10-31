@@ -35,8 +35,7 @@ function tokenDigest(token) {
 }
 
 function cookieOptions(maxAge = 28800) {
-  const sameSite = process.env.NODE_ENV === 'production' ? 'SameSite=None' : 'SameSite=Strict';
-  const options = ['Path=/', 'HttpOnly', sameSite, `Max-Age=${maxAge}`];
+  const options = ['Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${maxAge}`];
   if (process.env.NODE_ENV === 'production') options.push('Secure');
   return options.join('; ');
 }

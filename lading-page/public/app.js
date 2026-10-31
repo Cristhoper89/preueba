@@ -1,8 +1,5 @@
 (() => {
-  const API_BASE_URL = ['oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io', 'z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io'].includes(location.hostname)
-    ? 'https://lid9y6eypw0fyip7pu3auyb6.2.24.87.5.sslip.io'
-    : location.origin;
-  const apiUrl = path => new URL(path, API_BASE_URL).toString();
+  const apiUrl = path => path;
   const plans = {
     esencial: { name: 'Aurora Esencial', description: 'Tu primer encuentro con el café de especialidad.', base: 39900, baseSize: '250 g' },
     explorador: { name: 'Dúo Explorador', description: 'Dos perfiles para descubrir nuevos favoritos.', base: 69900, baseSize: '500 g' },

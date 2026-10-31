@@ -10,7 +10,7 @@ COPY backend/scripts ./scripts
 
 ENV NODE_ENV=production
 ENV SERVE_FRONTEND=false
-ENV CORS_ALLOWED_ORIGINS="http://oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io,http://z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io"
+ENV CORS_ALLOWED_ORIGINS="http://oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io,https://oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io,http://z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io,https://z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io"
 EXPOSE 3000
 
 CMD ["npm", "start"]

@@ -1,7 +1,4 @@
 (() => {
-  const API_BASE_URL = ['oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io', 'z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io'].includes(location.hostname)
-    ? 'https://lid9y6eypw0fyip7pu3auyb6.2.24.87.5.sslip.io'
-    : location.origin;
   const $ = selector => document.querySelector(selector);
   const labels = {
     esencial: 'Aurora Esencial',
@@ -34,7 +31,7 @@
   }
 
   async function api(url, options = {}) {
-    const response = await fetch(new URL(url, API_BASE_URL), { credentials: 'include', cache: 'no-store', ...options });
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', ...options });
     const contentType = response.headers.get('content-type') || '';
     if (!response.ok) {
       const body = contentType.includes('application/json') ? await response.json() : {};
