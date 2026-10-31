@@ -30,7 +30,7 @@
   let authenticatedCustomer = null;
   let activeSubscription = null;
   let customerSessionChecked = false;
-  let customerSignedIn = true;
+  let customerSignedIn = false;
   let exitModalShown = sessionStorage.getItem('aurora_exit_shown') === '1';
   const formatCOP = value => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value);
   const priceFor = () => {
@@ -176,6 +176,7 @@
     authenticatedCustomer = customer;
     customerSignedIn = true;
     customerSessionChecked = true;
+    updateCustomerSessionButton();
     activeSubscription = customer.activeSubscription || null;
     renderPlanActions();
     leadModal.classList.remove('open');
@@ -197,6 +198,11 @@
       : `Sesión iniciada: ${customer.name} · Completa los datos de entrega de tu perfil una sola vez.`;
     $('#accountStatus').classList.remove('hidden');
     $('#authNote').textContent = 'Usaremos los datos de entrega de tu cuenta para esta solicitud. No se solicitan datos de tarjeta.';
+  }
+  function updateCustomerSessionButton() {
+    const button = $('#customerSessionButton');
+    button.textContent = customerSignedIn ? 'Cerrar sesión' : 'Iniciar sesión';
+    button.setAttribute('aria-label', button.textContent);
   }
   function resetAuthForm() {
     authenticatedCustomer = null;
@@ -238,6 +244,32 @@
       console.error(`customer session check failed: ${error.message}`);
     } finally {
       customerSessionChecked = true;
+      updateCustomerSessionButton();
+      $('#customerSessionButton').disabled = false;
+    }
+  }
+  async function closeCustomerSession() {
+    const button = $('#customerSessionButton');
+    button.disabled = true;
+    try {
+      const response = await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'No se pudo cerrar la sesión.');
+      authenticatedCustomer = null;
+      activeSubscription = null;
+      customerSignedIn = false;
+      updateCustomerSessionButton();
+      renderPlanActions();
+      toast('Sesión cerrada.');
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      button.disabled = false;
     }
   }
   function closeCheckout() {
@@ -322,6 +354,46 @@
   });
   document.querySelectorAll('.choose-plan').forEach(button => button.addEventListener('click', () => openCheckout(button.dataset.plan)));
   document.querySelectorAll('.cancel-plan').forEach(button => button.addEventListener('click', () => cancelActiveSubscription(button)));
+  const accountDialog = $('#accountDialog');
+  $('#customerSessionButton').addEventListener('click', () => {
+    if (customerSignedIn) {
+      closeCustomerSession();
+      return;
+    }
+    $('#accountLoginError').textContent = '';
+    $('#accountLoginForm').reset();
+    accountDialog.showModal();
+    accountDialog.querySelector('[name="email"]').focus();
+  });
+  $('#closeAccountDialog').addEventListener('click', () => accountDialog.close());
+  $('#accountLoginForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const button = $('#accountLoginSubmit');
+    const error = $('#accountLoginError');
+    button.disabled = true;
+    error.textContent = '';
+    try {
+      const data = Object.fromEntries(new FormData(form).entries());
+      const response = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'No se pudo iniciar sesión.');
+      setAuthenticatedCustomer({ ...result.user, activeSubscription: result.activeSubscription || null });
+      accountDialog.close();
+      form.reset();
+      toast('Sesión iniciada.');
+    } catch (loginError) {
+      error.textContent = loginError.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('#bagSize').addEventListener('change', event => {
     updateSummary();
     track('checkout_option_changed', selectedPlan, { option: 'bagSize', value: event.currentTarget.value });

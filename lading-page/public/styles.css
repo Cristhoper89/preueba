@@ -31,3 +31,15 @@
 .cancel-dialog-actions .button-outline:hover{background:#754631;color:#fffaf1}
 @media(max-width:900px){.plan-card.featured{transform:translateY(-5px)}}
 @media(max-width:680px){.plan-card.featured{transform:none}.cancel-dialog{padding:33px 24px 26px}.cancel-dialog-actions{grid-template-columns:1fr}.faq-list details{padding:18px 8px}}
+.customer-session-button{flex-shrink:0;margin-left:12px}
+.account-dialog{z-index:30}
+.account-dialog>p{margin:0;color:var(--muted);font-size:12px}
+.account-dialog-close{position:absolute;top:13px;right:15px;width:34px;height:34px;border:0;background:transparent;color:var(--muted);font-size:25px;line-height:1}
+.account-login-form{display:grid;gap:14px;margin-top:24px}
+.account-login-form label{display:grid;gap:6px;color:var(--muted);font-size:10px;font-weight:700}
+.account-login-form input{height:44px;padding:0 12px;border:1px solid var(--line);background:#fff;font:12px var(--sans)}
+.account-login-form .form-error{min-height:0;margin:0;color:#a33b2f}
+.account-login-form .form-error:empty{display:none}
+.account-login-form .button{width:100%;margin-top:2px}
+.account-dialog :focus-visible,.customer-session-button:focus-visible{outline:3px solid var(--orange);outline-offset:3px}
+@media(max-width:680px){.customer-session-button{min-height:35px;margin-left:auto;margin-right:12px;padding:0 10px;font-size:9px}}

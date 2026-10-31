@@ -9,13 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=2">
 </head>
 <body>
   <div class="announcement">CAFÉ RECIÉN TOSTADO, DIRECTO A TU PUERTA <span>✳</span> ENVÍO GRATIS EN TU PRIMERA CAJA</div>
   <header class="site-header">
     <a class="brand" href="#inicio" aria-label="Café Aurora, inicio"><span class="brand-mark">A</span><span>café <b>aurora</b><small>CLUB DE CAFÉ DE ESPECIALIDAD</small></span></a>
     <nav class="desktop-nav"><a href="#beneficios">La experiencia</a><a href="#planes">Suscripciones</a><a href="#como-funciona">Cómo funciona</a></nav>
+    <button class="button button-small button-outline customer-session-button" id="customerSessionButton" type="button" disabled>Iniciar sesión</button>
     <a class="button button-small button-dark header-cta" href="#planes">Encuentra tu café <span>↗</span></a>
     <button class="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
   </header>
@@ -118,6 +119,20 @@
     </div>
   </div>
 
+  <dialog class="cancel-dialog account-dialog" id="accountDialog" aria-labelledby="accountDialogTitle">
+    <button class="account-dialog-close" id="closeAccountDialog" type="button" aria-label="Cerrar">×</button>
+    <div class="cancel-dialog-mark" aria-hidden="true">A</div>
+    <div class="eyebrow">CLUB CAFÉ AURORA</div>
+    <h2 id="accountDialogTitle">Qué bueno<br><em>tenerte de vuelta.</em></h2>
+    <p>Iniciar sesión es opcional. Puedes explorar la página y sus planes sin una cuenta.</p>
+    <form id="accountLoginForm" class="account-login-form">
+      <label>Correo electrónico<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="tu@correo.com"></label>
+      <label>Contraseña<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+      <p class="form-error" id="accountLoginError" role="alert"></p>
+      <button class="button button-dark button-full" id="accountLoginSubmit" type="submit">Iniciar sesión</button>
+    </form>
+  </dialog>
+
   <div class="lead-modal" id="leadModal" aria-hidden="true"><div class="lead-card"><button class="lead-close" aria-label="Cerrar">×</button><div class="eyebrow">UN REGALO PARA TI ✳</div><h2>El secreto de una<br><em>buena taza.</em></h2><p>Déjanos tu correo y recibe nuestra guía de preparación de café en casa.</p><form id="leadForm"><input type="email" name="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico"><label class="lead-consent"><input type="checkbox" required> Acepto recibir información de Café Aurora.</label><button class="button button-dark button-full" type="submit">Quiero mi guía <span>→</span></button><div class="form-error" id="leadError" role="alert"></div></form><small>Sin spam. Solo buen café.</small></div></div>
   <dialog class="cancel-dialog" id="cancelDialog" aria-labelledby="cancelDialogTitle" aria-describedby="cancelDialogDescription">
     <div class="cancel-dialog-mark" aria-hidden="true">A</div>
@@ -130,6 +145,6 @@
     </div>
   </dialog>
   <div class="toast" id="toast" role="status"></div>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=2" defer></script>
 </body>
 </html>
