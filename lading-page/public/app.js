@@ -1,4 +1,8 @@
 (() => {
+  const API_BASE_URL = ['oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io', 'z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io'].includes(location.hostname)
+    ? 'https://lid9y6eypw0fyip7pu3auyb6.2.24.87.5.sslip.io'
+    : location.origin;
+  const apiUrl = path => new URL(path, API_BASE_URL).toString();
   const plans = {
     esencial: { name: 'Aurora Esencial', description: 'Tu primer encuentro con el café de especialidad.', base: 39900, baseSize: '250 g' },
     explorador: { name: 'Dúo Explorador', description: 'Dos perfiles para descubrir nuevos favoritos.', base: 69900, baseSize: '500 g' },
@@ -36,7 +40,7 @@
   }
   function track(eventName, planId = '', metadata = {}) {
     const payload = { sessionId, eventName, pagePath: location.pathname, planId, ...attribution, metadata };
-    fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {});
+    fetch(apiUrl('/api/events'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {});
   }
   function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
   function updateSummary() {
@@ -151,7 +155,7 @@
   }
   async function getAuthenticatedCustomer() {
     if (authenticatedCustomer) return authenticatedCustomer;
-    const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/auth/me'), { credentials: 'include', cache: 'no-store' });
     const result = await response.json();
     if (response.status === 401) return null;
     if (!response.ok) throw new Error(result.error || 'No se pudo verificar la sesión.');
@@ -161,7 +165,7 @@
   }
   async function checkCustomerSession() {
     try {
-      const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch(apiUrl('/api/auth/me'), { credentials: 'include', cache: 'no-store' });
       if (response.status === 401) {
         customerSignedIn = false;
         return;
@@ -196,9 +200,9 @@
     if (!activeSubscription || !window.confirm('¿Quieres cancelar tu plan activo ahora?')) return;
     button.disabled = true;
     try {
-      const response = await fetch('/api/subscriptions/active/cancel', {
+      const response = await fetch(apiUrl('/api/subscriptions/active/cancel'), {
         method: 'POST',
-        credentials: 'same-origin',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
@@ -238,9 +242,9 @@
           error.textContent = 'Las contraseñas no coinciden.';
           return;
         }
-        const authResponse = await fetch(`/api/auth/${authMode}`, {
+        const authResponse = await fetch(apiUrl(`/api/auth/${authMode}`), {
           method: 'POST',
-          credentials: 'same-origin',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: data.name,
@@ -259,9 +263,9 @@
       if (!form.reportValidity()) return;
       const data = Object.fromEntries(new FormData(form).entries());
       if (!customer.profileComplete) {
-        const profileResponse = await fetch('/api/auth/profile', {
+        const profileResponse = await fetch(apiUrl('/api/auth/profile'), {
           method: 'PUT',
-          credentials: 'same-origin',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: data.phone, city: data.city, address: data.address })
         });
@@ -278,9 +282,9 @@
         ...attribution
       };
       const updating = subscriptionMode === 'update';
-      const response = await fetch(updating ? '/api/subscriptions/active' : '/api/subscriptions', {
+      const response = await fetch(apiUrl(updating ? '/api/subscriptions/active' : '/api/subscriptions'), {
         method: updating ? 'PUT' : 'POST',
-        credentials: 'same-origin',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order)
       });
@@ -310,7 +314,7 @@
     const error = $('#leadError'); error.textContent = '';
     const email = new FormData(form).get('email');
     try {
-      const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, consent: true, offer: 'guia-preparacion', ...attribution }) });
+      const response = await fetch(apiUrl('/api/leads'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, consent: true, offer: 'guia-preparacion', ...attribution }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || 'No se pudo guardar tu correo.');
       if (result.captured === false) {
         error.textContent = result.message || 'No se registró el lead.';

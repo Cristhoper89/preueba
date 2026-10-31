@@ -4,6 +4,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const { registerMarketingRoutes } = require('./marketing');
 const { registerCustomerAuth } = require('./customer-auth');
+const { isAllowedOrigin } = require('./request-origin');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -14,6 +15,20 @@ const serveFrontend = process.env.SERVE_FRONTEND !== 'false';
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '20kb' }));
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (origin && isAllowedOrigin(req, origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Credentials', 'true');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.vary('Origin');
+  }
+  if (req.method === 'OPTIONS') {
+    return origin && isAllowedOrigin(req, origin) ? res.sendStatus(204) : res.sendStatus(403);
+  }
+  next();
+});
 if (serveFrontend) app.use(express.static(landingPath));
 registerMarketingRoutes(app, pool);
 registerCustomerAuth(app, pool);

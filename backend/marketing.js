@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const { isAllowedOrigin } = require('./request-origin');
 
 const SESSION_HOURS = 8;
 const ROLE_PERMISSIONS = {
@@ -33,8 +34,9 @@ function tokenDigest(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function cookieOptions() {
-  const options = ['Path=/', 'HttpOnly', 'SameSite=Strict', 'Max-Age=28800'];
+function cookieOptions(maxAge = 28800) {
+  const sameSite = process.env.NODE_ENV === 'production' ? 'SameSite=None' : 'SameSite=Strict';
+  const options = ['Path=/', 'HttpOnly', sameSite, `Max-Age=${maxAge}`];
   if (process.env.NODE_ENV === 'production') options.push('Secure');
   return options.join('; ');
 }
@@ -117,12 +119,7 @@ function registerMarketingRoutes(app, pool) {
     const origin = req.get('origin');
     const referer = req.get('referer');
     const candidate = origin || referer;
-    if (!candidate) return res.status(403).json({ error: 'Solicitud de origen no válido.' });
-    try {
-      if (new URL(candidate).host !== req.get('host')) return res.status(403).json({ error: 'Solicitud de origen no válido.' });
-    } catch (_error) {
-      return res.status(403).json({ error: 'Solicitud de origen no válido.' });
-    }
+    if (!candidate || !isAllowedOrigin(req, candidate)) return res.status(403).json({ error: 'Solicitud de origen no válido.' });
     next();
   }
 
@@ -231,7 +228,7 @@ function registerMarketingRoutes(app, pool) {
     const token = getCookie(req, sessionCookie);
     await pool.query('DELETE FROM marketing_admin_sessions WHERE token_hash = $1', [tokenDigest(token)]);
     await audit(req, 'logout');
-    res.set('Set-Cookie', `${sessionCookie}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    res.set('Set-Cookie', `${sessionCookie}=; ${cookieOptions(0)}`);
     res.json({ ok: true });
   }));
 

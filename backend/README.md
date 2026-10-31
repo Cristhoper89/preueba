@@ -37,6 +37,8 @@ docker compose up --build
 
 La landing queda disponible en `http://localhost:8081`, el panel en `http://localhost:8080` y el backend en `http://localhost:3000`. Las interfaces web envían sus solicitudes `/api/` al servicio `backend` de Compose. La imagen `backend/Dockerfile` ejecuta únicamente la API; no incluye ni sirve los archivos de la landing o del panel. Para publicar solo la API en Coolify, configura el puerto `3000`.
 
+La imagen del backend ya permite solicitudes desde los orígenes actuales de la landing y el panel: `http://oowwgfyjnl5pnzscgekwkjdy.2.24.87.5.sslip.io` y `http://z3gy63fnzwpdzjx5aazxg7zm.2.24.87.5.sslip.io`. Si cambian, actualiza `CORS_ALLOWED_ORIGINS` en Coolify con los nuevos orígenes completos separados por comas. El frontend usa la URL HTTPS de la API configurada en los archivos JavaScript. En producción, el backend habilita cookies `SameSite=None; Secure` para las sesiones entre dominios; se recomienda habilitar HTTPS también en ambos frontends.
+
 ### Coolify
 
 Los Dockerfiles usan rutas relativas a la raíz del repositorio. Al crear cada servicio Dockerfile en Coolify, configura el **Base Directory / Build Context** como `/` y la ruta del Dockerfile según el servicio:
