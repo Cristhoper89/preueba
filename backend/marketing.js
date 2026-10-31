@@ -51,10 +51,157 @@ function csvCell(value) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
+const CSV_HEADERS = {
+  user_id: 'ID de usuario',
+  customer_name: 'Nombre del cliente',
+  email: 'Correo electrónico',
+  phone: 'Teléfono',
+  source: 'Fuente',
+  medium: 'Medio',
+  campaign: 'Campaña',
+  gclid: 'ID de clic de Google',
+  fbclid: 'ID de clic de Facebook',
+  created_at: 'Fecha de registro',
+  event_name: 'Interacción',
+  session_id: 'ID de visita',
+  page_path: 'Página',
+  plan_id: 'Código del plan',
+  bag_size: 'Tamaño de bolsa',
+  frequency_days: 'Frecuencia (días)',
+  placement: 'Ubicación',
+  label: 'Texto del botón',
+  option: 'Opción',
+  value: 'Valor',
+  question_index: 'Número de pregunta',
+  question: 'Pregunta',
+  mode: 'Tipo de acceso',
+  stage: 'Paso',
+  previous_plan_name: 'Plan anterior',
+  previous_bag_size: 'Tamaño anterior',
+  previous_frequency_days: 'Frecuencia anterior (días)',
+  new_plan_name: 'Plan nuevo',
+  new_bag_size: 'Tamaño nuevo',
+  new_frequency_days: 'Frecuencia nueva (días)',
+  subscription_id: 'ID de solicitud',
+  duration_seconds: 'Duración (segundos)',
+  term: 'Palabra clave',
+  content: 'Anuncio',
+  plan_name: 'Plan',
+  price_cop: 'Precio (COP)',
+  status: 'Estado',
+  visits: 'Visitas',
+  subscriptions: 'Solicitudes',
+  from: 'Desde',
+  to: 'Hasta',
+  leads: 'Contactos',
+  primary_cta_clicks: 'Clics en el botón principal',
+  primary_cta_rate: 'Tasa de clics del botón principal (%)',
+  modal_opens: 'Aperturas de la ventana',
+  details_views: 'Vistas de datos de envío',
+  confirm_attempts: 'Intentos de confirmación',
+  confirmation_abandonment_rate: 'Tasa de abandono antes de confirmar (%)',
+  faq_opens: 'Preguntas frecuentes abiertas',
+  cancel_prompts: 'Avisos de cancelación',
+  avg_duration_seconds: 'Duración promedio (segundos)',
+  canceled_subscriptions: 'Solicitudes canceladas',
+  not_canceled_subscriptions: 'Solicitudes vigentes',
+  cancellation_rate: 'Tasa de cancelación (%)'
+};
+
+const CSV_FILENAMES = {
+  leads: 'contactos',
+  events: 'interacciones',
+  subscriptions: 'solicitudes',
+  campaigns: 'campanas',
+  dashboard: 'resumen'
+};
+
+const CSV_EVENT_LABELS = {
+  page_view: 'Visita',
+  plan_selected: 'Selección de plan',
+  checkout_started: 'Inicio de solicitud',
+  checkout_abandoned: 'Proceso sin finalizar',
+  subscription_confirmed: 'Solicitud confirmada',
+  lead_captured: 'Contacto registrado',
+  session_end: 'Fin de visita',
+  cta_click: 'Clic en botón',
+  primary_cta_click: 'Clic en botón principal',
+  faq_open: 'Pregunta frecuente abierta',
+  subscription_modal_open: 'Ventana de suscripción abierta',
+  checkout_details_view: 'Paso de datos de envío',
+  checkout_back_to_summary: 'Regreso al resumen',
+  checkout_option_changed: 'Opción del plan cambiada',
+  subscription_confirm_attempt: 'Intento de confirmar',
+  cancel_confirmation_prompt: 'Aviso de cancelación',
+  cancel_confirmation_confirmed: 'Cancelación confirmada',
+  cancel_confirmation_dismissed: 'Cancelación descartada',
+  subscription_updated: 'Plan actualizado',
+  subscription_cancelled: 'Solicitud cancelada'
+};
+
+const CSV_VALUE_LABELS = {
+  status: {
+    simulada: 'Activa',
+    activa: 'Activa',
+    active: 'Activa',
+    cancelada: 'Cancelada',
+    cancelled: 'Cancelada',
+    canceled: 'Cancelada',
+    vencida: 'Vencida',
+    expired: 'Vencida',
+    inactiva: 'Inactiva',
+    inactive: 'Inactiva',
+    reemplazada: 'Reemplazada',
+    replaced: 'Reemplazada'
+  },
+  plan_id: {
+    esencial: 'Aurora Esencial',
+    explorador: 'Dúo Explorador',
+    reserva: 'Reserva de la Casa'
+  },
+  source: {
+    direct: 'Directo',
+    google: 'Google',
+    facebook: 'Facebook',
+    instagram: 'Instagram'
+  },
+  option: {
+    bagSize: 'Tamaño de bolsa',
+    frequencyDays: 'Frecuencia'
+  },
+  mode: {
+    register: 'Registro',
+    login: 'Inicio de sesión'
+  },
+  medium: {
+    cpc: 'Costo por clic',
+    organic: 'Orgánico',
+    referral: 'Referencia',
+    email: 'Correo electrónico',
+    social: 'Redes sociales',
+    paid_social: 'Redes sociales pagadas'
+  }
+};
+
+function csvValue(key, value) {
+  if (key === 'event_name') return CSV_EVENT_LABELS[value] || value;
+  if ((key === 'from' || key === 'to' || key === 'created_at') && value) {
+    const text = String(value);
+    const dateOnly = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    }
+  }
+  const labels = CSV_VALUE_LABELS[key];
+  return labels?.[String(value).toLowerCase()] || value;
+}
+
 function csvResponse(res, filename, columns, rows) {
   const csv = [
-    columns.map(column => csvCell(column.label)).join(';'),
-    ...rows.map(row => columns.map(column => csvCell(row[column.key])).join(';'))
+    columns.map(column => csvCell(CSV_HEADERS[column.key] || column.label)).join(';'),
+    ...rows.map(row => columns.map(column => csvCell(csvValue(column.key, row[column.key]))).join(';'))
   ].join('\r\n');
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="${filename}"`);
@@ -829,7 +976,7 @@ function registerMarketingRoutes(app, pool) {
       throw error;
     }
     await audit(req, 'export', { type, from, to, rows: rows.length });
-    csvResponse(res, `cafe-aurora-${type}-${from}-${to}.csv`, columns, rows);
+    csvResponse(res, `cafe-aurora-${CSV_FILENAMES[type]}-${from}-${to}.csv`, columns, rows);
   }));
 
   router.use((_req, res) => res.status(404).json({ error: 'Ruta del panel no encontrada.' }));
