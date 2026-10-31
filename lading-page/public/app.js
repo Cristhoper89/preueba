@@ -10,13 +10,18 @@
   const checkout = $('#checkout');
   const sessionId = getSessionId();
   const params = new URLSearchParams(location.search);
-  const attribution = {
-    source: params.get('utm_source') || (params.has('gclid') ? 'google' : params.has('fbclid') ? 'facebook' : 'direct'),
-    medium: params.get('utm_medium') || '',
-    campaign: params.get('utm_campaign') || '',
-    gclid: params.get('gclid') || '',
-    fbclid: params.get('fbclid') || ''
-  };
+  if (!sessionStorage.getItem('aurora_attribution')) {
+    sessionStorage.setItem('aurora_attribution', JSON.stringify({
+      source: params.get('utm_source') || (params.has('gclid') ? 'google' : params.has('fbclid') ? 'facebook' : 'direct'),
+      medium: params.get('utm_medium') || '',
+      campaign: params.get('utm_campaign') || '',
+      term: params.get('utm_term') || '',
+      content: params.get('utm_content') || '',
+      gclid: params.get('gclid') || '',
+      fbclid: params.get('fbclid') || ''
+    }));
+  }
+  const attribution = JSON.parse(sessionStorage.getItem('aurora_attribution'));
   let selectedPlan = 'explorador';
   let checkoutStarted = false;
   let subscriptionMode = 'create';
@@ -107,6 +112,11 @@
       : 'Confirmar suscripción <span>→</span>';
     $('#progressFill').style.width = '50%';
     checkout.classList.add('open'); checkout.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+    track('subscription_modal_open', selectedPlan, {
+      mode: subscriptionMode,
+      bagSize: $('#bagSize').value,
+      frequencyDays: document.querySelector('input[name="frequency"]:checked').value
+    });
     track('plan_selected', selectedPlan);
     if (!checkoutStarted) { track('checkout_started', selectedPlan); checkoutStarted = true; }
     $('.close-checkout').focus();
@@ -130,7 +140,16 @@
     resetAuthForm();
     checkoutStarted = false;
     if (subscriptionMode !== 'update') {
-      track('subscription_confirmed', selectedPlan, { subscriptionId: subscription.id });
+      track('subscription_confirmed', selectedPlan, {
+        subscriptionId: subscription.id,
+        source: attribution.source,
+        medium: attribution.medium,
+        campaign: attribution.campaign,
+        term: attribution.term,
+        content: attribution.content,
+        gclid: attribution.gclid,
+        fbclid: attribution.fbclid
+      });
     }
   }
   function setAuthMode(mode) {
@@ -222,7 +241,11 @@
   }
   function closeCheckout() {
     if (checkout.classList.contains('open') && !$('#stepDone').classList.contains('hidden')) { /* completed */ }
-    else if (checkoutStarted) { track('checkout_abandoned', selectedPlan); checkoutStarted = false; }
+    else if (checkoutStarted) {
+      const stage = $('#stepDetails').classList.contains('hidden') ? 'summary' : 'details';
+      track('checkout_abandoned', selectedPlan, { stage });
+      checkoutStarted = false;
+    }
     checkout.classList.remove('open'); checkout.setAttribute('aria-hidden', 'true'); document.body.style.overflow = '';
   }
   function renderPlanActions() {
@@ -238,7 +261,11 @@
     });
   }
   async function cancelActiveSubscription(button) {
-    if (!activeSubscription || !window.confirm('¿Quieres cancelar tu plan activo ahora?')) return;
+    if (!activeSubscription) return;
+    track('cancel_confirmation_prompt', activeSubscription.plan_id);
+    const confirmed = window.confirm('¿Quieres cancelar tu plan activo ahora?');
+    track(confirmed ? 'cancel_confirmation_confirmed' : 'cancel_confirmation_dismissed', activeSubscription.plan_id);
+    if (!confirmed) return;
     button.disabled = true;
     try {
       const response = await fetch(apiUrl('/api/subscriptions/active/cancel'), {
@@ -260,14 +287,65 @@
   }
   document.querySelectorAll('.choose-plan').forEach(button => button.addEventListener('click', () => openCheckout(button.dataset.plan)));
   document.querySelectorAll('.cancel-plan').forEach(button => button.addEventListener('click', () => cancelActiveSubscription(button)));
-  $('#bagSize').addEventListener('change', updateSummary);
-  document.querySelectorAll('input[name="frequency"]').forEach(input => input.addEventListener('change', updateSummary));
+  $('#bagSize').addEventListener('change', event => {
+    updateSummary();
+    track('checkout_option_changed', selectedPlan, { option: 'bagSize', value: event.currentTarget.value });
+  });
+  document.querySelectorAll('input[name="frequency"]').forEach(input => input.addEventListener('change', event => {
+    updateSummary();
+    track('checkout_option_changed', selectedPlan, { option: 'frequencyDays', value: event.currentTarget.value });
+  }));
   document.querySelectorAll('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
-  $('#toDetails').addEventListener('click', () => { $('#stepSummary').classList.add('hidden'); $('#stepDetails').classList.remove('hidden'); $('#progressFill').style.width = '100%'; });
-  $('#backSummary').addEventListener('click', () => { $('#stepDetails').classList.add('hidden'); $('#stepSummary').classList.remove('hidden'); $('#progressFill').style.width = '50%'; });
+  $('#toDetails').addEventListener('click', () => {
+    track('checkout_details_view', selectedPlan, { bagSize: $('#bagSize').value, frequencyDays: document.querySelector('input[name="frequency"]:checked').value });
+    $('#stepSummary').classList.add('hidden'); $('#stepDetails').classList.remove('hidden'); $('#progressFill').style.width = '100%';
+  });
+  $('#backSummary').addEventListener('click', () => { track('checkout_back_to_summary', selectedPlan); $('#stepDetails').classList.add('hidden'); $('#stepSummary').classList.remove('hidden'); $('#progressFill').style.width = '50%'; });
   $('.close-checkout').addEventListener('click', closeCheckout);
   checkout.addEventListener('click', event => { if (event.target === checkout) closeCheckout(); });
   $('#finishCheckout').addEventListener('click', () => { closeCheckout(); location.hash = '#inicio'; });
+  $('#submitSubscription').addEventListener('click', () => track('subscription_confirm_attempt', selectedPlan, {
+    bagSize: $('#bagSize').value,
+    frequencyDays: document.querySelector('input[name="frequency"]:checked').value
+  }));
+  document.querySelectorAll('.desktop-nav a[href="#planes"], a[href="#planes"]').forEach(link => {
+    link.addEventListener('click', () => {
+      const placement = link.closest('.hero-actions') ? 'hero'
+        : link.closest('.site-header') ? 'header'
+          : link.closest('.closing-cta') ? 'closing'
+            : 'content';
+      track('cta_click', '', { placement, label: link.textContent.trim().slice(0, 100) });
+      if (placement === 'hero') track('primary_cta_click', '', { placement });
+    });
+  });
+  document.querySelectorAll('.faq-list details').forEach((item, index) => {
+    item.addEventListener('toggle', () => {
+      if (item.open) track('faq_open', '', { questionIndex: index + 1, question: item.querySelector('summary').textContent.trim().slice(0, 160) });
+    });
+  });
+  document.querySelectorAll('#planes, .closing-cta').forEach(section => {
+    const eventName = section.id === 'planes' ? 'plans_section_view' : 'page_bottom_reached';
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        track(eventName, '', { section: section.id || 'closing-cta' });
+        observer.disconnect();
+      }
+    }, { threshold: 0.25 });
+    observer.observe(section);
+  });
+  const scrollDepths = new Set();
+  function recordScrollDepth() {
+    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (scrollableHeight <= 0) return;
+    const depth = Math.min(100, Math.floor(window.scrollY / scrollableHeight * 100));
+    for (const threshold of [25, 50, 75, 100]) {
+      if (depth >= threshold && !scrollDepths.has(threshold)) {
+        scrollDepths.add(threshold);
+        track('scroll_depth', '', { depth: threshold });
+      }
+    }
+  }
+  window.addEventListener('scroll', recordScrollDepth, { passive: true });
 
   $('#subscriptionForm').addEventListener('submit', async event => {
     event.preventDefault();
@@ -320,7 +398,13 @@
         planId: selectedPlan,
         bagSize: $('#bagSize').value,
         frequencyDays: Number(document.querySelector('input[name="frequency"]:checked').value),
-        ...attribution
+        source: attribution.source,
+        medium: attribution.medium,
+        campaign: attribution.campaign,
+        term: attribution.term,
+        content: attribution.content,
+        gclid: attribution.gclid,
+        fbclid: attribution.fbclid
       };
       const updating = subscriptionMode === 'update';
       const response = await fetch(apiUrl(updating ? '/api/subscriptions/active' : '/api/subscriptions'), {

@@ -69,12 +69,21 @@
           <article class="metric-card"><span>Inicios de suscripción</span><strong id="metricStarts">—</strong><small>Procesos iniciados</small></article>
           <article class="metric-card"><span>Suscripciones registradas</span><strong id="metricSubscriptions">—</strong><small>Solicitudes recibidas</small></article>
           <article class="metric-card"><span>Conversión sobre visitas</span><strong id="metricConversion">—</strong><small>Suscripciones ÷ visitas</small></article>
-          <article class="metric-card"><span>CTR interno</span><strong id="metricCtr">—</strong><small>Clics en planes ÷ visitas</small></article>
+          <article class="metric-card"><span>Selección de planes / visitas</span><strong id="metricCtr">—</strong><small>Clics en “Elegir este plan” ÷ visitas</small></article>
           <article class="metric-card"><span>Abandono identificable</span><strong id="metricAbandonment">—</strong><small id="metricAbandonmentCount">Sin procesos abandonados</small></article>
           <article class="metric-card"><span>Tiempo promedio en el sitio</span><strong id="metricAvgDuration">—</strong><small id="metricMeasuredSessions">Duración medida al salir del sitio</small></article>
           <article class="metric-card"><span>Páginas por sesión</span><strong id="metricPagesPerSession">—</strong><small>Rutas distintas vistas por sesión</small></article>
           <article class="metric-card"><span>Solicitudes canceladas</span><strong id="metricCancellationRate">—</strong><small id="metricCancellationCount">De las solicitudes creadas en el período</small></article>
           <article class="metric-card"><span>Solicitudes no canceladas</span><strong id="metricNotCanceled">—</strong><small>Incluye solicitudes con estado simulado</small></article>
+        </div>
+        <div class="metric-grid" style="margin-top:12px">
+          <article class="metric-card"><span>CTR del CTA principal</span><strong id="metricPrimaryCtaRate">—</strong><small id="metricPrimaryCtaClicks">Clics en “Quiero mi café Aurora”</small></article>
+          <article class="metric-card"><span>Alcance de la sección de planes</span><strong id="metricPlansReachRate">—</strong><small id="metricPlansSectionViews">Sesiones que llegaron a los planes</small></article>
+          <article class="metric-card"><span>Alcance del final de página</span><strong id="metricPageBottomRate">—</strong><small id="metricPageBottomReaches">Sesiones que llegaron al cierre</small></article>
+          <article class="metric-card"><span>Aperturas del modal</span><strong id="metricModalOpens">—</strong><small id="metricDetailsViews">Vistas de “¿A dónde lo enviamos?”</small></article>
+          <article class="metric-card"><span>Abandono antes de confirmar</span><strong id="metricConfirmAbandonment">—</strong><small id="metricConfirmAttempts">Intentos de confirmación</small></article>
+          <article class="metric-card"><span>Preguntas frecuentes abiertas</span><strong id="metricFaqOpens">—</strong><small>Interacciones con los acordeones</small></article>
+          <article class="metric-card"><span>Alertas de cancelación</span><strong id="metricCancelPrompts">—</strong><small id="metricCancelOutcomes">Respuestas a la alerta</small></article>
         </div>
         <div class="chart-grid">
           <article class="panel-card chart-card"><div class="panel-heading"><div><h3>Visitas y conversiones</h3><p>Evolución diaria en el rango seleccionado</p></div><div class="legend"><span><i class="legend-visits"></i>Visitas</span><span><i class="legend-subs"></i>Suscripciones</span></div></div><canvas id="trendChart" aria-label="Gráfico de visitas y suscripciones por día"></canvas><p class="chart-empty hidden" id="chartEmpty">No hay datos en este rango de fechas.</p></article>
@@ -88,13 +97,21 @@
           <article class="panel-card"><div class="panel-heading"><div><h3>Preferencias de entrega</h3><p>Tamaño y frecuencia de suscripciones registradas</p></div></div><div id="optionList" class="rank-list"></div></article>
           <article class="panel-card"><div class="panel-heading"><div><h3>Conversión de leads</h3><p>Leads y suscripciones asociados a la misma cuenta</p></div></div><div class="lead-conversion"><strong id="leadConversionRate">—</strong><span>de los leads del período</span></div></article>
         </div>
+        <div class="chart-grid">
+          <article class="panel-card"><div class="panel-heading"><div><h3>Microembudo del modal</h3><p>Sesiones que avanzan por cada etapa del flujo</p></div></div><div id="microFunnelList" class="funnel-list"></div></article>
+          <article class="panel-card"><div class="panel-heading"><div><h3>Profundidad de scroll</h3><p>Sesiones que alcanzaron cada porcentaje de la página</p></div></div><div id="scrollDepthList" class="rank-list"></div></article>
+        </div>
+        <div class="chart-grid">
+          <article class="panel-card"><div class="panel-heading"><div><h3>Opciones más elegidas en el modal</h3><p>Valores iniciales y cambios de tamaño/frecuencia</p></div></div><div id="optionSelectionList" class="rank-list"></div></article>
+          <article class="panel-card"><div class="panel-heading"><div><h3>Dudas más consultadas</h3><p>Preguntas frecuentes que se abrieron</p></div></div><div id="faqQuestionList" class="rank-list"></div></article>
+        </div>
         <div class="note-banner">La duración se estima al salir del sitio y solo cuenta sesiones que enviaron ese evento; las páginas por sesión son rutas distintas (la landing actual es de una sola página). Las solicitudes son simuladas: la cancelación mide solicitudes marcadas como canceladas, no retención de clientes de pago. CAC y LTV no se muestran: no existen datos de inversión ni ingresos reales.</div>
       </section>
 
       <section class="page-section hidden" id="section-campaigns">
         <div class="section-intro"><div><h2>Campañas y adquisición</h2><p>Compara visitas y suscripciones según los parámetros UTM guardados.</p></div><button class="button button-outline export-button" data-export="campaigns">Exportar campañas CSV</button></div>
-        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Fuente</th><th>Medio</th><th>Campaña</th><th>Visitas</th><th>Suscripciones</th><th>Conversión</th></tr></thead><tbody id="campaignRows"></tbody></table></div></div>
-        <p class="footnote">Los parámetros gclid y fbclid se conservan cuando están presentes. “Sin campaña” indica que no se recibió un UTM correspondiente.</p>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Fuente</th><th>Medio</th><th>Campaña</th><th>Palabra clave</th><th>Contenido/anuncio</th><th>Visitas</th><th>Suscripciones</th><th>Conversión</th></tr></thead><tbody id="campaignRows"></tbody></table></div></div>
+        <p class="footnote">La atribución conserva el primer origen de la sesión (UTM, gclid o fbclid); la palabra clave y el contenido provienen de utm_term y utm_content.</p>
       </section>
 
       <section class="page-section hidden" id="section-leads">
@@ -105,14 +122,14 @@
 
       <section class="page-section hidden" id="section-events">
         <div class="section-intro"><div><h2>Comportamiento</h2><p>Interacciones de la landing y cambios de suscripción registrados en el backend.</p></div><button class="button button-outline export-button" data-export="events">Exportar eventos CSV</button></div>
-        <div class="table-tools"><label>Tipo de evento<select id="eventType"><option value="">Todos los eventos</option><option value="page_view">Visita</option><option value="plan_selected">Selección de plan / CTA</option><option value="checkout_started">Inicio de suscripción</option><option value="checkout_abandoned">Abandono</option><option value="subscription_confirmed">Suscripción confirmada</option><option value="subscription_updated">Plan actualizado</option><option value="subscription_cancelled">Plan cancelado</option><option value="lead_captured">Lead capturado</option><option value="session_end">Fin de sesión</option></select></label></div>
-        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Cuenta / sesión</th><th>Plan / cambio</th><th>Duración</th><th>Fuente / campaña</th><th>Fecha</th></tr></thead><tbody id="eventRows"></tbody></table></div></div>
+        <div class="table-tools"><label>Tipo de evento<select id="eventType"><option value="">Todos los eventos</option><option value="page_view">Visita</option><option value="primary_cta_click">Clic en CTA principal</option><option value="plan_selected">Selección de plan</option><option value="plans_section_view">Llegada a planes</option><option value="subscription_modal_open">Apertura del modal</option><option value="checkout_details_view">Paso de envío</option><option value="checkout_option_changed">Cambio de opción</option><option value="subscription_confirm_attempt">Intento de confirmar</option><option value="subscription_confirmed">Solicitud confirmada</option><option value="cancel_confirmation_prompt">Alerta de cancelación</option><option value="cancel_confirmation_confirmed">Cancelación confirmada</option><option value="cancel_confirmation_dismissed">Cancelación descartada</option><option value="faq_open">Pregunta frecuente</option><option value="scroll_depth">Profundidad de scroll</option><option value="page_bottom_reached">Llegada al final</option><option value="checkout_started">Inicio de suscripción</option><option value="checkout_abandoned">Abandono</option><option value="subscription_updated">Plan actualizado</option><option value="subscription_cancelled">Plan cancelado</option><option value="lead_captured">Lead capturado</option><option value="session_end">Fin de sesión</option></select></label></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Cuenta / sesión</th><th>Plan / cambio</th><th>Detalle</th><th>Duración</th><th>Fuente / campaña</th><th>Fecha</th></tr></thead><tbody id="eventRows"></tbody></table></div></div>
       </section>
 
       <section class="page-section hidden" id="section-subscriptions">
         <div class="section-intro"><div><h2>Suscripciones</h2><p>Solicitudes recibidas en el sitio.</p></div><button class="button button-outline export-button" data-export="subscriptions">Exportar registros CSV</button></div>
         <div class="table-tools"><label>Plan<select id="subscriptionPlan"><option value="">Todos los planes</option><option value="esencial">Aurora Esencial</option><option value="explorador">Dúo Explorador</option><option value="reserva">Reserva de la Casa</option></select></label></div>
-        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Usuario ID</th><th>Cliente</th><th>Correo</th><th>Plan</th><th>Tamaño</th><th>Frecuencia</th><th>Valor por entrega</th><th>Estado</th><th>Fecha</th></tr></thead><tbody id="subscriptionRows"></tbody></table></div></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Usuario ID</th><th>Cliente</th><th>Correo</th><th>Plan</th><th>Tamaño</th><th>Frecuencia</th><th>Valor por entrega</th><th>Estado</th><th>Fuente</th><th>Medio</th><th>Campaña</th><th>Palabra clave</th><th>Anuncio</th><th>Fecha</th></tr></thead><tbody id="subscriptionRows"></tbody></table></div></div>
       </section>
       <footer class="app-footer">Café Aurora · Panel interno · Datos de actividad</footer>
     </main>

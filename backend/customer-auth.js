@@ -92,6 +92,8 @@ function validateOrder(body) {
     source: clean(body.source, 120),
     medium: clean(body.medium, 120),
     campaign: clean(body.campaign, 160),
+    term: clean(body.term, 200),
+    content: clean(body.content, 200),
     gclid: clean(body.gclid, 200),
     fbclid: clean(body.fbclid, 200),
     termsAccepted: body.termsAccepted === true
@@ -115,7 +117,7 @@ function orderPrice(order) {
 async function getActiveSubscriptions(pool, email, lock = false) {
   const result = await pool.query(
     `SELECT id, plan_id, plan_name, bag_size, frequency_days, price_cop, status, source, medium,
-            campaign, gclid, fbclid, created_at
+            campaign, term, content, gclid, fbclid, created_at
      FROM subscriptions
      WHERE LOWER(BTRIM(email)) = LOWER(BTRIM($1))
        AND LOWER(BTRIM(status)) IN ('simulada', 'activa', 'active')
@@ -141,6 +143,8 @@ async function recordSubscriptionEvent(client, eventName, user, subscription, me
       JSON.stringify({
         gclid: subscription.gclid || '',
         fbclid: subscription.fbclid || '',
+        term: subscription.term || '',
+        content: subscription.content || '',
         subscriptionId: subscription.id,
         userId: user.id,
         customerName: user.full_name,
@@ -377,12 +381,13 @@ function registerCustomerAuth(app, pool) {
       const result = await client.query(
         `INSERT INTO subscriptions
           (user_id, customer_name, email, phone, address, city, plan_id, plan_name,
-           bag_size, frequency_days, price_cop, status, source, medium, campaign, gclid, fbclid)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'simulada',$12,$13,$14,$15,$16)
-         RETURNING id, plan_id, plan_name, bag_size, frequency_days, price_cop, status, created_at`,
+           bag_size, frequency_days, price_cop, status, source, medium, campaign, term, content, gclid, fbclid)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'simulada',$12,$13,$14,$15,$16,$17,$18)
+         RETURNING id, plan_id, plan_name, bag_size, frequency_days, price_cop, status,
+                   source, medium, campaign, term, content, gclid, fbclid, created_at`,
         [lockedUser.id, lockedUser.full_name, lockedUser.email, lockedUser.phone, lockedUser.address, lockedUser.city,
           order.planId, plan.name, order.bagSize, order.frequencyDays, orderPrice(order),
-          order.source, order.medium, order.campaign, order.gclid, order.fbclid]
+          order.source, order.medium, order.campaign, order.term, order.content, order.gclid, order.fbclid]
       );
       await client.query('COMMIT');
       res.status(201).json({
@@ -431,13 +436,28 @@ function registerCustomerAuth(app, pool) {
       const result = await client.query(
         `UPDATE subscriptions
          SET user_id = $1, customer_name = $2, email = $3, phone = $4, address = $5, city = $6,
-             plan_id = $7, plan_name = $8, bag_size = $9, frequency_days = $10, price_cop = $11
-         WHERE id = $12
-         RETURNING id, plan_id, plan_name, bag_size, frequency_days, price_cop, status, created_at`,
+             plan_id = $7, plan_name = $8, bag_size = $9, frequency_days = $10, price_cop = $11,
+             source = $12, medium = $13, campaign = $14, term = $15, content = $16, gclid = $17, fbclid = $18
+         WHERE id = $19
+         RETURNING id, plan_id, plan_name, bag_size, frequency_days, price_cop, status, source, medium, campaign, term, content, gclid, fbclid, created_at`,
         [lockedUser.id, lockedUser.full_name, lockedUser.email, lockedUser.phone, lockedUser.address, lockedUser.city,
-          order.planId, plan.name, order.bagSize, order.frequencyDays, orderPrice(order), current.id]
+          order.planId, plan.name, order.bagSize, order.frequencyDays, orderPrice(order),
+          order.source, order.medium, order.campaign, order.term, order.content, order.gclid, order.fbclid, current.id]
       );
-      await recordSubscriptionEvent(client, 'subscription_updated', lockedUser, current, {
+      await recordSubscriptionEvent(client, 'subscription_updated', lockedUser, {
+        ...current,
+        plan_id: order.planId,
+        plan_name: plan.name,
+        bag_size: order.bagSize,
+        frequency_days: order.frequencyDays,
+        source: order.source,
+        medium: order.medium,
+        campaign: order.campaign,
+        term: order.term,
+        content: order.content,
+        gclid: order.gclid,
+        fbclid: order.fbclid
+      }, {
         previousPlanId: current.plan_id,
         previousPlanName: current.plan_name,
         previousBagSize: current.bag_size,

@@ -12,7 +12,21 @@
     subscription_updated: 'Plan actualizado',
     subscription_cancelled: 'Plan cancelado',
     lead_captured: 'Lead capturado',
-    session_end: 'Fin de sesión'
+    session_end: 'Fin de sesión',
+    cta_click: 'Clic en CTA',
+    primary_cta_click: 'Clic en CTA principal',
+    plans_section_view: 'Llegada a los planes',
+    page_bottom_reached: 'Llegada al final de página',
+    scroll_depth: 'Profundidad de scroll',
+    faq_open: 'Pregunta frecuente abierta',
+    subscription_modal_open: 'Modal de suscripción abierto',
+    checkout_details_view: 'Paso de datos de envío',
+    checkout_back_to_summary: 'Regreso al resumen',
+    checkout_option_changed: 'Opción del plan cambiada',
+    subscription_confirm_attempt: 'Intento de confirmar',
+    cancel_confirmation_prompt: 'Alerta de cancelación',
+    cancel_confirmation_confirmed: 'Aceptó en alerta de cancelación',
+    cancel_confirmation_dismissed: 'Cancelación descartada'
   };
   const state = { user: null, section: 'dashboard', dashboard: null };
   const numberFormat = new Intl.NumberFormat('es-CO');
@@ -166,6 +180,21 @@
     $('#metricSubscriptions').textContent = numberFormat.format(data.metrics.subscriptions);
     $('#metricConversion').textContent = percentFormat(data.metrics.conversionRate);
     $('#metricCtr').textContent = percentFormat(data.metrics.ctaRate);
+    $('#metricPrimaryCtaRate').textContent = percentFormat(data.metrics.primaryCtaRate);
+    $('#metricPrimaryCtaClicks').textContent = `${numberFormat.format(data.metrics.primaryCtaClicks)} clics en el CTA principal`;
+    $('#metricPlansReachRate').textContent = percentFormat(data.metrics.plansReachRate);
+    $('#metricPlansSectionViews').textContent = `${numberFormat.format(data.metrics.plansSectionViews)} sesiones llegaron a planes`;
+    $('#metricPageBottomRate').textContent = percentFormat(data.metrics.pageBottomRate);
+    $('#metricPageBottomReaches').textContent = `${numberFormat.format(data.metrics.pageBottomReaches)} sesiones llegaron al cierre`;
+    $('#metricModalOpens').textContent = numberFormat.format(data.metrics.modalOpens);
+    $('#metricDetailsViews').textContent = `${numberFormat.format(data.metrics.detailsViews)} vistas del paso de envío`;
+    $('#metricConfirmAbandonment').textContent = data.metrics.detailsViews
+      ? percentFormat(data.metrics.confirmationAbandonmentRate)
+      : '—';
+    $('#metricConfirmAttempts').textContent = `${numberFormat.format(data.metrics.confirmAttempts)} intentos de confirmación`;
+    $('#metricFaqOpens').textContent = numberFormat.format(data.metrics.faqOpens);
+    $('#metricCancelPrompts').textContent = numberFormat.format(data.metrics.cancelPrompts);
+    $('#metricCancelOutcomes').textContent = `${numberFormat.format(data.metrics.cancelConfirmed)} aceptadas · ${numberFormat.format(data.metrics.cancelDismissed)} descartadas`;
     $('#metricAbandonment').textContent = percentFormat(data.metrics.abandonmentRate);
     $('#metricAbandonmentCount').textContent = `${numberFormat.format(data.metrics.abandonments)} procesos identificados`;
     $('#metricCancellationRate').textContent = data.metrics.subscriptions
@@ -179,6 +208,10 @@
     renderRank($('#planList'), data.plans, row => labels[row.planId] || row.planId, row => row.selections);
     renderRank($('#optionList'), data.options, row => `${row.bagSize || 'Tamaño sin dato'} · cada ${row.frequencyDays || '—'} días`, row => row.total);
     renderFunnel(data.funnel);
+    renderFunnel(data.microFunnel, $('#microFunnelList'));
+    renderRank($('#scrollDepthList'), data.scrollDepth, row => `${row.depth}% de scroll`, row => row.sessions);
+    renderRank($('#optionSelectionList'), data.optionSelections, row => `${row.option === 'bagSize' ? 'Tamaño' : 'Frecuencia'}: ${row.value}`, row => row.total);
+    renderRank($('#faqQuestionList'), data.faqQuestions, row => row.question, row => row.total);
   }
 
   function drawTrend(rows) {
@@ -265,7 +298,7 @@
 
   function renderRank(container, rows, label, value) {
     container.replaceChildren();
-    if (!rows.length) return appendEmpty(container, 'Aún no hay selecciones de planes.');
+    if (!rows.length) return appendEmpty(container, 'Aún no hay datos para mostrar.');
     rows.forEach(row => {
       const item = document.createElement('div');
       item.className = 'rank-row';
@@ -278,8 +311,7 @@
     });
   }
 
-  function renderFunnel(rows) {
-    const container = $('#funnelList');
+  function renderFunnel(rows, container = $('#funnelList')) {
     container.replaceChildren();
     const max = Math.max(1, ...rows.map(row => row.total));
     rows.forEach(row => {
@@ -338,6 +370,7 @@
       conversion: row.visits ? row.subscriptions / row.visits * 100 : 0
     })), [
       { key: 'source' }, { key: 'medium' }, { key: 'campaign' },
+      { key: 'term' }, { key: 'content' },
       { key: 'visits', render: (td, row) => { td.textContent = numberFormat.format(row.visits); } },
       { key: 'subscriptions', render: (td, row) => { td.textContent = numberFormat.format(row.subscriptions); } },
       { key: 'conversion', render: (td, row) => { td.textContent = percentFormat(row.conversion); } }
@@ -383,10 +416,22 @@
           ? `${previous} → ${current}`
           : current || previous || '—';
       } },
+      { key: 'placement', render: (td, row) => {
+        td.textContent = [
+          row.placement && `Ubicación: ${row.placement}`,
+          row.label && `CTA: ${row.label}`,
+          row.option && `Opción: ${row.option} → ${row.value || '—'}`,
+          row.depth && `Scroll: ${row.depth}%`,
+          row.question && `FAQ: ${row.question}`,
+          row.section && `Sección: ${row.section}`,
+          row.mode && `Modal: ${row.mode}`,
+          row.stage && `Paso: ${row.stage}`
+        ].filter(Boolean).join(' · ') || '—';
+      } },
       { key: 'duration_seconds', render: (td, row) => {
         td.textContent = row.duration_seconds == null ? '—' : durationFormat(row.duration_seconds);
       } },
-      { key: 'campaign', render: (td, row) => { td.textContent = [row.source, row.campaign].filter(Boolean).join(' · ') || '—'; } },
+      { key: 'campaign', render: (td, row) => { td.textContent = [row.source, row.medium, row.campaign, row.term, row.content].filter(Boolean).join(' · ') || '—'; } },
       { key: 'created_at', render: (td, row) => { td.textContent = formatDate(row.created_at); } }
     ], 'No hay interacciones para el filtro seleccionado.');
   }
@@ -415,6 +460,9 @@
         badge.textContent = ({ simulada: 'Activa', activa: 'Activa', active: 'Activa', cancelada: 'Cancelada', vencida: 'Vencida', inactiva: 'Inactiva', reemplazada: 'Reemplazada' })[status] || row.status || '—';
         td.append(badge);
       } },
+      { key: 'source', render: (td, row) => { td.textContent = row.source || '—'; } },
+      { key: 'medium', render: (td, row) => { td.textContent = row.medium || '—'; } },
+      { key: 'campaign' }, { key: 'term' }, { key: 'content' },
       { key: 'created_at', render: (td, row) => { td.textContent = formatDate(row.created_at); } }
     ], 'No hay suscripciones para el rango elegido.');
   }

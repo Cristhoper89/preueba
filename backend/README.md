@@ -74,11 +74,11 @@ El panel usa sesiones aleatorias persistidas como hash en PostgreSQL, cookies `H
 - Registro e inicio de sesión con correo y contraseña; el teléfono y la dirección se guardan al crear la cuenta y se reutilizan en suscripciones posteriores, asociadas mediante `user_id`.
 - Los precios se calculan y validan en el servidor. El formulario no solicita información de tarjetas.
 - Captura opcional de correo mediante modal de intención de salida, con consentimiento.
-- Tracking propio en PostgreSQL: `page_view`, `plan_selected`, `checkout_started`, `checkout_abandoned`, `subscription_confirmed`, `subscription_updated`, `subscription_cancelled` y `lead_captured`. Las actualizaciones y cancelaciones se registran desde el backend en la misma transacción del cambio de suscripción.
-- Captura de UTM y de origen básico (`gclid` / `fbclid`) sin cargar píxeles publicitarios.
-- El panel estima duración de sesión cuando el navegador abandona la página y muestra rutas distintas por sesión; las sesiones nuevas comienzan tras 30 minutos de inactividad. La cancelación se calcula sobre solicitudes creadas en el período y marcadas como canceladas. Las solicitudes actuales son simuladas, así que no representan retención de suscripciones con pagos reales.
+- Tracking propio en PostgreSQL: visitas, clics de CTA y plan, apertura y pasos del modal, cambios de tamaño/frecuencia, intentos de confirmación, abandonos, cancelaciones, FAQ y profundidad de scroll. El panel calcula tasas por sesiones y expone eventos con su ubicación y detalle.
+- Atribución de primer toque con `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid` y `fbclid`; los datos se conservan en la suscripción y aparecen en campañas, registros y exportaciones. No se cargan píxeles publicitarios.
+- El panel estima duración de sesión cuando el navegador abandona la página y muestra rutas distintas por sesión; las sesiones nuevas comienzan tras 30 minutos de inactividad. El CTR y el alcance de secciones usan sesiones distintas como denominador. La cancelación se calcula sobre solicitudes creadas en el período y marcadas como canceladas. Las solicitudes actuales son simuladas, así que no representan retención de suscripciones con pagos reales.
 - Panel de marketing en `../control-marketing`, protegido por autenticación y con dashboard, campañas, leads, eventos, suscripciones y exportaciones CSV.
-- La migración de `schema.sql` agrega usuarios, roles, sesiones, auditoría e índices del panel. Puede ejecutarse de nuevo de forma segura para actualizar una base existente.
+- La migración de `schema.sql` agrega usuarios, roles, sesiones, auditoría e índices del panel; puede volver a ejecutarse de forma segura. El backend no aplica cambios de esquema al arrancar: tras desplegar una versión que modifique la base, vuelve a ejecutar `backend/schema.sql` sobre la base existente antes de usar las rutas afectadas.
 
 ## Tablas
 - `subscriptions`: solicitudes de suscripción.

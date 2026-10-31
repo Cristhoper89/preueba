@@ -242,7 +242,11 @@ function registerMarketingRoutes(app, pool) {
     const subscriptionFilters = [from, to];
     const subscriptionFilterSql = addDimensionFilters(subscriptionFilters, { source, medium, campaign });
 
-    const [metricsResult, sessionMetricsResult, daysResult, sourcesResult, plansResult, funnelResult, optionsResult] = await Promise.all([
+    const [
+      metricsResult, sessionMetricsResult, daysResult, sourcesResult, plansResult,
+      funnelResult, optionsResult, interactionMetricsResult, confirmationAbandonmentResult,
+      optionSelectionsResult, scrollDepthResult, faqQuestionsResult
+    ] = await Promise.all([
       pool.query(
         `SELECT
           COUNT(*) FILTER (WHERE event_name = 'page_view') AS visits,
@@ -311,6 +315,73 @@ function registerMarketingRoutes(app, pool) {
          GROUP BY bag_size, frequency_days ORDER BY total DESC`,
         subscriptionFilters
       ),
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE event_name = 'primary_cta_click') AS primary_cta_clicks,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'plans_section_view') AS plans_section_views,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'page_bottom_reached') AS page_bottom_reaches,
+           COUNT(*) FILTER (WHERE event_name = 'subscription_modal_open') AS modal_opens,
+           COUNT(*) FILTER (WHERE event_name = 'checkout_details_view') AS details_views,
+           COUNT(*) FILTER (WHERE event_name = 'subscription_confirm_attempt') AS confirm_attempts,
+           COUNT(*) FILTER (WHERE event_name = 'faq_open') AS faq_opens,
+           COUNT(*) FILTER (WHERE event_name = 'cancel_confirmation_prompt') AS cancel_prompts,
+           COUNT(*) FILTER (WHERE event_name = 'cancel_confirmation_confirmed') AS cancel_confirmed,
+           COUNT(*) FILTER (WHERE event_name = 'cancel_confirmation_dismissed') AS cancel_dismissed,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'page_view') AS visitors,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'primary_cta_click') AS primary_cta_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'plans_section_view') AS plans_section_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'page_bottom_reached') AS page_bottom_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'subscription_modal_open') AS modal_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'checkout_details_view') AS details_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'subscription_confirm_attempt') AS confirm_sessions,
+           COUNT(DISTINCT session_id) FILTER (WHERE event_name = 'subscription_confirmed') AS confirmed_sessions
+         FROM events WHERE ${eventWhere}`,
+        filters
+      ),
+      pool.query(
+        `WITH sessions AS (
+           SELECT session_id,
+             BOOL_OR(event_name = 'checkout_details_view') AS details_view,
+             BOOL_OR(event_name = 'subscription_confirm_attempt') AS confirm_attempt
+           FROM events WHERE ${eventWhere}
+           GROUP BY session_id
+         )
+         SELECT COUNT(*) FILTER (WHERE details_view) AS details_sessions,
+                COUNT(*) FILTER (WHERE details_view AND NOT confirm_attempt) AS abandoned_sessions
+         FROM sessions`,
+        filters
+      ),
+      pool.query(
+        `WITH selections AS (
+           SELECT metadata->>'option' AS option, metadata->>'value' AS value
+           FROM events WHERE event_name = 'checkout_option_changed' AND ${eventWhere}
+           UNION ALL
+           SELECT 'bagSize' AS option, metadata->>'bagSize' AS value
+           FROM events WHERE event_name = 'subscription_modal_open' AND ${eventWhere}
+           UNION ALL
+           SELECT 'frequencyDays' AS option, metadata->>'frequencyDays' AS value
+           FROM events WHERE event_name = 'subscription_modal_open' AND ${eventWhere}
+         )
+         SELECT option, value, COUNT(*) AS total FROM selections
+         WHERE value IS NOT NULL AND value <> ''
+         GROUP BY option, value
+         ORDER BY total DESC LIMIT 20`,
+        filters
+      ),
+      pool.query(
+        `SELECT metadata->>'depth' AS depth, COUNT(DISTINCT session_id) AS sessions
+         FROM events WHERE event_name = 'scroll_depth' AND ${eventWhere}
+         GROUP BY metadata->>'depth'
+         ORDER BY CASE WHEN metadata->>'depth' ~ '^(25|50|75|100)$'
+           THEN (metadata->>'depth')::integer ELSE 0 END`,
+        filters
+      ),
+      pool.query(
+        `SELECT metadata->>'question' AS question, COUNT(*) AS total
+         FROM events WHERE event_name = 'faq_open' AND ${eventWhere}
+         GROUP BY metadata->>'question' ORDER BY total DESC LIMIT 10`,
+        filters
+      )
     ]);
 
     const leadsFilters = [from, to];
@@ -339,6 +410,9 @@ function registerMarketingRoutes(app, pool) {
     const subscriptions = Number(subscriptionsResult.rows[0].total);
     const canceledSubscriptions = Number(subscriptionsResult.rows[0].canceled);
     const eventCounts = Object.fromEntries(funnelResult.rows.map(row => [row.event_name, Number(row.total)]));
+    const interactions = interactionMetricsResult.rows[0];
+    const detailsSessions = Number(confirmationAbandonmentResult.rows[0].details_sessions);
+    const confirmSessions = Number(interactions.confirm_sessions);
     const leads = Number(leadsResult.rows[0].total);
     const convertedFilters = [from, to];
     let convertedFilterSql = '';
@@ -376,6 +450,20 @@ function registerMarketingRoutes(app, pool) {
         notCanceledSubscriptions: subscriptions - canceledSubscriptions,
         cancellationRate: subscriptions ? canceledSubscriptions / subscriptions * 100 : 0,
         ctaRate: visits ? Number(metric.cta_clicks) / visits * 100 : 0,
+        primaryCtaClicks: Number(interactions.primary_cta_clicks),
+        primaryCtaRate: Number(interactions.visitors) ? Number(interactions.primary_cta_sessions) / Number(interactions.visitors) * 100 : 0,
+        plansSectionViews: Number(interactions.plans_section_views),
+        plansReachRate: Number(interactions.visitors) ? Number(interactions.plans_section_sessions) / Number(interactions.visitors) * 100 : 0,
+        pageBottomReaches: Number(interactions.page_bottom_reaches),
+        pageBottomRate: Number(interactions.visitors) ? Number(interactions.page_bottom_sessions) / Number(interactions.visitors) * 100 : 0,
+        modalOpens: Number(interactions.modal_opens),
+        detailsViews: Number(interactions.details_views),
+        confirmAttempts: Number(interactions.confirm_attempts),
+        confirmationAbandonmentRate: detailsSessions ? Number(confirmationAbandonmentResult.rows[0].abandoned_sessions) / detailsSessions * 100 : 0,
+        faqOpens: Number(interactions.faq_opens),
+        cancelPrompts: Number(interactions.cancel_prompts),
+        cancelConfirmed: Number(interactions.cancel_confirmed),
+        cancelDismissed: Number(interactions.cancel_dismissed),
         abandonments: Number(metric.abandonments),
         leadConversionRate: leads ? Number(convertedLeads.rows[0].total) / leads * 100 : 0
       },
@@ -389,7 +477,19 @@ function registerMarketingRoutes(app, pool) {
         { step: 'Suscripciones registradas', total: subscriptions }
       ],
       eventCounts,
-      options: optionsResult.rows.map(row => ({ bagSize: row.bag_size, frequencyDays: row.frequency_days, total: Number(row.total) }))
+      options: optionsResult.rows.map(row => ({ bagSize: row.bag_size, frequencyDays: row.frequency_days, total: Number(row.total) })),
+      optionSelections: optionSelectionsResult.rows.map(row => ({ option: row.option, value: row.value, total: Number(row.total) })),
+      scrollDepth: scrollDepthResult.rows.map(row => ({ depth: Number(row.depth), sessions: Number(row.sessions) })),
+      faqQuestions: faqQuestionsResult.rows.map(row => ({ question: row.question || 'Pregunta sin texto', total: Number(row.total) })),
+      microFunnel: [
+        { step: 'Visitantes', total: Number(interactions.visitors) },
+        { step: 'CTA principal', total: Number(interactions.primary_cta_sessions) },
+        { step: 'Llegaron a planes', total: Number(interactions.plans_section_sessions) },
+        { step: 'Abrieron el modal', total: Number(interactions.modal_sessions) },
+        { step: 'Vieron datos de envío', total: detailsSessions },
+        { step: 'Intentaron confirmar', total: confirmSessions },
+        { step: 'Confirmaron solicitud', total: Number(interactions.confirmed_sessions) }
+      ]
     });
   }));
 
@@ -406,6 +506,8 @@ function registerMarketingRoutes(app, pool) {
       source: row.source || 'sin fuente',
       medium: row.medium || 'sin medio',
       campaign: row.campaign || 'sin campaña',
+      term: row.term || '',
+      content: row.content || '',
       visits: Number(row.visits),
       subscriptions: Number(row.subscriptions)
     })) });
@@ -467,10 +569,17 @@ function registerMarketingRoutes(app, pool) {
     const result = await pool.query(
       `SELECT event_name, session_id, page_path, plan_id, source, medium, campaign,
               metadata->>'gclid' AS gclid, metadata->>'fbclid' AS fbclid,
+              metadata->>'term' AS term, metadata->>'content' AS content,
               metadata->>'email' AS email, metadata->>'userId' AS user_id,
               metadata->>'planName' AS plan_name,
               metadata->>'bagSize' AS bag_size,
               metadata->>'frequencyDays' AS frequency_days,
+              metadata->>'placement' AS placement, metadata->>'label' AS label,
+              metadata->>'option' AS option, metadata->>'value' AS value,
+              metadata->>'depth' AS depth, metadata->>'question' AS question,
+              metadata->>'questionIndex' AS question_index,
+              metadata->>'section' AS section, metadata->>'mode' AS mode,
+              metadata->>'stage' AS stage,
               metadata->>'previousPlanId' AS previous_plan_id,
               metadata->>'previousPlanName' AS previous_plan_name,
               metadata->>'previousBagSize' AS previous_bag_size,
@@ -506,7 +615,7 @@ function registerMarketingRoutes(app, pool) {
     values.push(Math.min(500, Math.max(1, Number(req.query.limit) || 100)));
     const result = await pool.query(
       `SELECT id, user_id, customer_name, email, phone, plan_id, plan_name, bag_size, frequency_days,
-              price_cop, status, source, medium, campaign, gclid, fbclid, created_at
+              price_cop, status, source, medium, campaign, term, content, gclid, fbclid, created_at
        FROM subscriptions WHERE ${filters.join(' AND ')}
        ORDER BY created_at DESC LIMIT $${values.length}`,
       values
@@ -561,10 +670,17 @@ function registerMarketingRoutes(app, pool) {
       const result = await pool.query(
         `SELECT event_name, session_id, page_path, plan_id, source, medium, campaign,
                 metadata->>'gclid' AS gclid, metadata->>'fbclid' AS fbclid,
+                metadata->>'term' AS term, metadata->>'content' AS content,
                 metadata->>'email' AS email, metadata->>'userId' AS user_id,
                 metadata->>'planName' AS plan_name,
                 metadata->>'bagSize' AS bag_size,
                 metadata->>'frequencyDays' AS frequency_days,
+                metadata->>'placement' AS placement, metadata->>'label' AS label,
+                metadata->>'option' AS option, metadata->>'value' AS value,
+                metadata->>'depth' AS depth, metadata->>'question' AS question,
+                metadata->>'questionIndex' AS question_index,
+                metadata->>'section' AS section, metadata->>'mode' AS mode,
+                metadata->>'stage' AS stage,
                 metadata->>'previousPlanId' AS previous_plan_id,
                 metadata->>'previousPlanName' AS previous_plan_name,
                 metadata->>'previousBagSize' AS previous_bag_size,
@@ -580,7 +696,7 @@ function registerMarketingRoutes(app, pool) {
         values
       );
       rows = result.rows;
-      columns = ['event_name', 'session_id', 'page_path', 'plan_id', 'user_id', 'email', 'plan_name', 'bag_size', 'frequency_days', 'previous_plan_name', 'previous_bag_size', 'previous_frequency_days', 'new_plan_name', 'new_bag_size', 'new_frequency_days', 'subscription_id', 'duration_seconds', 'source', 'medium', 'campaign', 'gclid', 'fbclid', 'created_at'].map(key => ({ key, label: key }));
+      columns = ['event_name', 'session_id', 'page_path', 'plan_id', 'user_id', 'email', 'plan_name', 'bag_size', 'frequency_days', 'placement', 'label', 'option', 'value', 'depth', 'question_index', 'question', 'section', 'mode', 'stage', 'previous_plan_name', 'previous_bag_size', 'previous_frequency_days', 'new_plan_name', 'new_bag_size', 'new_frequency_days', 'subscription_id', 'duration_seconds', 'source', 'medium', 'campaign', 'term', 'content', 'gclid', 'fbclid', 'created_at'].map(key => ({ key, label: key }));
     } else if (type === 'subscriptions') {
       const values = [from, to];
       const plan = textFilter(req.query.plan, 40);
@@ -591,17 +707,17 @@ function registerMarketingRoutes(app, pool) {
       }
       const dimensionSql = addDimensionFilters(values, dimensions);
       const result = await pool.query(
-        `SELECT user_id, customer_name, email, phone, plan_name, bag_size, frequency_days, price_cop, status, source, medium, campaign, created_at
+        `SELECT user_id, customer_name, email, phone, plan_name, bag_size, frequency_days, price_cop, status, source, medium, campaign, term, content, created_at
          FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${planFilterSql}${dimensionSql}
          ORDER BY created_at DESC LIMIT 10000`,
         values
       );
       rows = result.rows;
-      columns = ['user_id', 'customer_name', 'email', 'phone', 'plan_name', 'bag_size', 'frequency_days', 'price_cop', 'status', 'source', 'medium', 'campaign', 'created_at'].map(key => ({ key, label: key }));
+      columns = ['user_id', 'customer_name', 'email', 'phone', 'plan_name', 'bag_size', 'frequency_days', 'price_cop', 'status', 'source', 'medium', 'campaign', 'term', 'content', 'created_at'].map(key => ({ key, label: key }));
     } else if (type === 'campaigns') {
       const result = await campaignRows(pool, { from, to, ...dimensions });
       rows = result.rows;
-      columns = ['source', 'medium', 'campaign', 'visits', 'subscriptions'].map(key => ({ key, label: key }));
+      columns = ['source', 'medium', 'campaign', 'term', 'content', 'visits', 'subscriptions'].map(key => ({ key, label: key }));
     } else if (type === 'dashboard') {
       const visitValues = [from, to];
       const visitDimensions = addDimensionFilters(visitValues, dimensions);
@@ -616,6 +732,18 @@ function registerMarketingRoutes(app, pool) {
           (SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${subscriptionDimensions}) AS subscriptions,
           (SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${subscriptionDimensions}
              AND LOWER(BTRIM(status)) IN ('cancelada', 'cancelled', 'canceled')) AS canceled_subscriptions,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'primary_cta_click' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS primary_cta_clicks,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'plans_section_view' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS plans_section_views,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'page_bottom_reached' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS page_bottom_reaches,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'subscription_modal_open' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS modal_opens,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'checkout_details_view' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS details_views,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'subscription_confirm_attempt' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS confirm_attempts,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'faq_open' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS faq_opens,
+          (SELECT COUNT(*) FROM events WHERE event_name = 'cancel_confirmation_prompt' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS cancel_prompts,
+          (SELECT COUNT(DISTINCT session_id) FROM events WHERE event_name = 'page_view' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS visitors,
+          (SELECT COUNT(DISTINCT session_id) FROM events WHERE event_name = 'primary_cta_click' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS primary_cta_sessions,
+          (SELECT COUNT(DISTINCT session_id) FROM events WHERE event_name = 'plans_section_view' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS plans_section_sessions,
+          (SELECT COUNT(DISTINCT session_id) FROM events WHERE event_name = 'page_bottom_reached' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS page_bottom_sessions,
           (SELECT COALESCE(AVG(duration_seconds), 0) FROM (
              SELECT MAX(CASE WHEN metadata->>'durationSeconds' ~ '^[0-9]+$'
                THEN LEAST((metadata->>'durationSeconds')::integer, 86400) END) AS duration_seconds
@@ -632,6 +760,20 @@ function registerMarketingRoutes(app, pool) {
         visitValues
       );
       const metrics = result.rows[0];
+      const confirmationAbandonment = await pool.query(
+        `WITH sessions AS (
+           SELECT session_id,
+             BOOL_OR(event_name = 'checkout_details_view') AS details_view,
+             BOOL_OR(event_name = 'subscription_confirm_attempt') AS confirm_attempt
+           FROM events
+           WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}
+           GROUP BY session_id
+         )
+         SELECT COUNT(*) FILTER (WHERE details_view) AS details_sessions,
+                COUNT(*) FILTER (WHERE details_view AND NOT confirm_attempt) AS abandoned_sessions
+         FROM sessions`,
+        visitValues
+      );
       const subscriptions = Number(metrics.subscriptions);
       const canceledSubscriptions = Number(metrics.canceled_subscriptions);
       rows = [{
@@ -639,9 +781,15 @@ function registerMarketingRoutes(app, pool) {
         to,
         ...metrics,
         not_canceled_subscriptions: subscriptions - canceledSubscriptions,
-        cancellation_rate: subscriptions ? canceledSubscriptions / subscriptions * 100 : 0
+        cancellation_rate: subscriptions ? canceledSubscriptions / subscriptions * 100 : 0,
+        primary_cta_rate: Number(metrics.visitors) ? Number(metrics.primary_cta_sessions) / Number(metrics.visitors) * 100 : 0,
+        plans_reach_rate: Number(metrics.visitors) ? Number(metrics.plans_section_sessions) / Number(metrics.visitors) * 100 : 0,
+        page_bottom_rate: Number(metrics.visitors) ? Number(metrics.page_bottom_sessions) / Number(metrics.visitors) * 100 : 0,
+        confirmation_abandonment_rate: Number(confirmationAbandonment.rows[0].details_sessions)
+          ? Number(confirmationAbandonment.rows[0].abandoned_sessions) / Number(confirmationAbandonment.rows[0].details_sessions) * 100
+          : 0
       }];
-      columns = ['from', 'to', 'visits', 'leads', 'subscriptions', 'avg_duration_seconds', 'pages_per_session', 'canceled_subscriptions', 'not_canceled_subscriptions', 'cancellation_rate'].map(key => ({ key, label: key }));
+      columns = ['from', 'to', 'visits', 'leads', 'subscriptions', 'primary_cta_clicks', 'primary_cta_rate', 'plans_section_views', 'plans_reach_rate', 'page_bottom_reaches', 'page_bottom_rate', 'modal_opens', 'details_views', 'confirm_attempts', 'confirmation_abandonment_rate', 'faq_opens', 'cancel_prompts', 'avg_duration_seconds', 'pages_per_session', 'canceled_subscriptions', 'not_canceled_subscriptions', 'cancellation_rate'].map(key => ({ key, label: key }));
     } else {
       const error = new Error('Tipo de exportación no válido.');
       error.status = 400;
@@ -667,23 +815,28 @@ async function campaignRows(pool, { from, to, source = '', medium = '', campaign
   const filterSql = filterParts.join('');
   return pool.query(
     `WITH ev AS (
-       SELECT source, medium, campaign, COUNT(*) AS visits FROM events
+       SELECT source, medium, campaign, metadata->>'term' AS term, metadata->>'content' AS content,
+              COUNT(*) AS visits FROM events
        WHERE event_name = 'page_view' AND created_at >= $1::date
          AND created_at < ($2::date + INTERVAL '1 day')${filterSql}
-       GROUP BY source, medium, campaign
+       GROUP BY source, medium, campaign, metadata->>'term', metadata->>'content'
      ), subs AS (
-       SELECT source, medium, campaign, COUNT(*) AS subscriptions FROM subscriptions
+       SELECT source, medium, campaign, term, content, COUNT(*) AS subscriptions FROM subscriptions
        WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${filterSql}
-       GROUP BY source, medium, campaign
+       GROUP BY source, medium, campaign, term, content
      )
      SELECT COALESCE(ev.source, subs.source) AS source,
             COALESCE(ev.medium, subs.medium) AS medium,
             COALESCE(ev.campaign, subs.campaign) AS campaign,
+            COALESCE(ev.term, subs.term) AS term,
+            COALESCE(ev.content, subs.content) AS content,
             COALESCE(ev.visits, 0) AS visits, COALESCE(subs.subscriptions, 0) AS subscriptions
      FROM ev FULL OUTER JOIN subs
        ON COALESCE(ev.source, '') = COALESCE(subs.source, '')
        AND COALESCE(ev.medium, '') = COALESCE(subs.medium, '')
        AND COALESCE(ev.campaign, '') = COALESCE(subs.campaign, '')
+       AND COALESCE(ev.term, '') = COALESCE(subs.term, '')
+       AND COALESCE(ev.content, '') = COALESCE(subs.content, '')
      ORDER BY visits DESC, subscriptions DESC LIMIT 500`,
     filters
   );
