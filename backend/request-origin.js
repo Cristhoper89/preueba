@@ -7,13 +7,22 @@ const allowedOrigins = new Set([
 
 for (const configuredOrigin of (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean)) {
   try {
-    const url = new URL(configuredOrigin);
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    const value = configuredOrigin.replace(/^["']+|["']+$/g, '');
+    const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    const url = new URL(candidate);
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      (url.pathname !== '/' && url.pathname !== '') ||
+      url.search ||
+      url.hash
+    ) {
       throw new Error();
     }
     allowedOrigins.add(url.origin);
   } catch (_error) {
-    throw new Error('CORS_ALLOWED_ORIGINS must contain valid HTTP or HTTPS origins separated by commas.');
+    console.warn('Ignoring invalid CORS_ALLOWED_ORIGINS entry; use a hostname or HTTP(S) origin.');
   }
 }
 
