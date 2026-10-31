@@ -23,6 +23,20 @@ npm start
 5. Abrir la landing en `http://localhost:3000` o el panel en `http://localhost:3000/marketing/`.
 Si el servidor ya estaba ejecutándose antes de incorporar el panel, reinícialo para que cargue las nuevas rutas.
 
+## Docker
+
+El proyecto incluye un Dockerfile para cada carpeta y un `docker-compose.yml` para iniciar los tres servicios:
+
+1. Copiar `backend/.env.example` a `backend/.env` y configurar `DATABASE_URL`. Desde un contenedor, `localhost` apunta al propio contenedor; usa una dirección de PostgreSQL accesible desde Docker.
+2. Crear la base de datos y ejecutar `backend/schema.sql` sobre ella.
+3. Desde la raíz del proyecto, ejecutar:
+
+```powershell
+docker compose up --build
+```
+
+La landing queda disponible en `http://localhost:8081`, el panel en `http://localhost:8080` y el backend en `http://localhost:3000`. Las interfaces web envían sus solicitudes `/api/` al servicio `backend` de Compose.
+
 ### Cuentas de clientes
 
 Al crear una cuenta se solicitan nombre, correo, contraseña, teléfono, ciudad y dirección de entrega; estos últimos datos quedan guardados en el perfil y se reutilizan al iniciar sesión. Las contraseñas deben tener al menos 12 caracteres y se almacenan con `scrypt`; las sesiones usan cookies `HttpOnly` y registros de sesión en PostgreSQL. Las suscripciones y los leads capturados por una cuenta quedan relacionados mediante `user_id`. Antes de registrar un lead, el backend normaliza el correo y consulta PostgreSQL; si encuentra una suscripción con estado `simulada`, `activa` o `active`, no guarda el lead, incluso si la suscripción no tiene asociado un `user_id`. Las suscripciones canceladas, vencidas o inactivas no se consideran activas.
