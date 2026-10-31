@@ -47,8 +47,8 @@ app.post('/api/events', async (req, res) => {
   const eventName = clean(body.eventName, 60);
   const allowed = new Set([
     'page_view', 'plan_selected', 'checkout_started', 'checkout_abandoned', 'subscription_confirmed',
-    'lead_captured', 'session_end', 'cta_click', 'primary_cta_click', 'plans_section_view',
-    'page_bottom_reached', 'scroll_depth', 'faq_open', 'subscription_modal_open',
+    'lead_captured', 'session_end', 'cta_click', 'primary_cta_click',
+    'faq_open', 'subscription_modal_open',
     'checkout_details_view', 'checkout_back_to_summary', 'checkout_option_changed',
     'subscription_confirm_attempt', 'cancel_confirmation_prompt',
     'cancel_confirmation_confirmed', 'cancel_confirmation_dismissed'
@@ -57,9 +57,6 @@ app.post('/api/events', async (req, res) => {
   const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
     ? { ...body.metadata }
     : {};
-  if (eventName === 'scroll_depth' && ![25, 50, 75, 100].includes(Number(metadata.depth))) {
-    return res.status(400).json({ error: 'La profundidad de scroll no es válida.' });
-  }
   if (eventName === 'checkout_option_changed') {
     const validSize = metadata.option === 'bagSize' && ['250 g', '500 g', '1 kg'].includes(metadata.value);
     const validFrequency = metadata.option === 'frequencyDays' && ['15', '30'].includes(String(metadata.value));

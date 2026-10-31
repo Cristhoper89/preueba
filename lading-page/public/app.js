@@ -196,7 +196,7 @@
       ? `Sesión iniciada: ${customer.name} · ${customer.email}`
       : `Sesión iniciada: ${customer.name} · Completa los datos de entrega de tu perfil una sola vez.`;
     $('#accountStatus').classList.remove('hidden');
-    $('#authNote').textContent = 'Usaremos los datos de entrega guardados en tu cuenta. No se solicitan datos de tarjeta.';
+    $('#authNote').textContent = 'Usaremos los datos de entrega de tu cuenta para esta solicitud. No se solicitan datos de tarjeta.';
   }
   function resetAuthForm() {
     authenticatedCustomer = null;
@@ -358,30 +358,6 @@
       if (item.open) track('faq_open', '', { questionIndex: index + 1, question: item.querySelector('summary').textContent.trim().slice(0, 160) });
     });
   });
-  document.querySelectorAll('#planes, .closing-cta').forEach(section => {
-    const eventName = section.id === 'planes' ? 'plans_section_view' : 'page_bottom_reached';
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        track(eventName, '', { section: section.id || 'closing-cta' });
-        observer.disconnect();
-      }
-    }, { threshold: 0.25 });
-    observer.observe(section);
-  });
-  const scrollDepths = new Set();
-  function recordScrollDepth() {
-    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-    if (scrollableHeight <= 0) return;
-    const depth = Math.min(100, Math.floor(window.scrollY / scrollableHeight * 100));
-    for (const threshold of [25, 50, 75, 100]) {
-      if (depth >= threshold && !scrollDepths.has(threshold)) {
-        scrollDepths.add(threshold);
-        track('scroll_depth', '', { depth: threshold });
-      }
-    }
-  }
-  window.addEventListener('scroll', recordScrollDepth, { passive: true });
-
   $('#subscriptionForm').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -477,7 +453,7 @@
       const response = await fetch(apiUrl('/api/leads'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, consent: true, offer: 'guia-preparacion', ...attribution }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || 'No se pudo guardar tu correo.');
       if (result.captured === false) {
-        error.textContent = result.message || 'No se registró el lead.';
+        error.textContent = result.message || 'No se pudo registrar tu correo.';
         return;
       }
       track('lead_captured'); leadModal.classList.remove('open'); leadModal.setAttribute('aria-hidden', 'true'); sessionStorage.setItem('aurora_lead_dismissed', '1'); toast('¡Gracias! Tu correo quedó registrado.'); form.reset();

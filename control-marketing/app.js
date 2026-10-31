@@ -5,21 +5,18 @@
     explorador: 'Dúo Explorador',
     reserva: 'Reserva de la Casa',
     page_view: 'Visita',
-    plan_selected: 'Selección de plan / CTA',
+    plan_selected: 'Selección de plan',
     checkout_started: 'Inicio de suscripción',
     checkout_abandoned: 'Abandono',
     subscription_confirmed: 'Suscripción confirmada',
     subscription_updated: 'Plan actualizado',
     subscription_cancelled: 'Plan cancelado',
-    lead_captured: 'Lead capturado',
+    lead_captured: 'Contacto registrado',
     session_end: 'Fin de sesión',
-    cta_click: 'Clic en CTA',
-    primary_cta_click: 'Clic en CTA principal',
-    plans_section_view: 'Llegada a los planes',
-    page_bottom_reached: 'Llegada al final de página',
-    scroll_depth: 'Profundidad de scroll',
+    cta_click: 'Clic en botón',
+    primary_cta_click: 'Clic en botón principal',
     faq_open: 'Pregunta frecuente abierta',
-    subscription_modal_open: 'Modal de suscripción abierto',
+    subscription_modal_open: 'Ventana de suscripción abierta',
     checkout_details_view: 'Paso de datos de envío',
     checkout_back_to_summary: 'Regreso al resumen',
     checkout_option_changed: 'Opción del plan cambiada',
@@ -135,7 +132,7 @@
     const title = {
       dashboard: 'Resumen general',
       campaigns: 'Campañas',
-      leads: 'Visitantes y leads',
+      leads: 'Contactos',
       events: 'Comportamiento',
       subscriptions: 'Suscripciones'
     }[section];
@@ -172,10 +169,7 @@
     $('#metricAvgDuration').textContent = data.metrics.measuredSessions
       ? durationFormat(data.metrics.avgDurationSeconds)
       : '—';
-    $('#metricMeasuredSessions').textContent = `${numberFormat.format(data.metrics.measuredSessions)} sesiones con duración medida`;
-    $('#metricPagesPerSession').textContent = data.metrics.visitors
-      ? Number(data.metrics.pagesPerSession || 0).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 2 })
-      : '—';
+    $('#metricMeasuredSessions').textContent = `${numberFormat.format(data.metrics.measuredSessions)} visitas con duración registrada`;
     $('#metricLeads').textContent = numberFormat.format(data.metrics.leads);
     $('#metricCta').textContent = numberFormat.format(data.metrics.ctaClicks);
     $('#metricStarts').textContent = numberFormat.format(data.metrics.checkoutStarts);
@@ -183,11 +177,7 @@
     $('#metricConversion').textContent = percentFormat(data.metrics.conversionRate);
     $('#metricCtr').textContent = percentFormat(data.metrics.ctaRate);
     $('#metricPrimaryCtaRate').textContent = percentFormat(data.metrics.primaryCtaRate);
-    $('#metricPrimaryCtaClicks').textContent = `${numberFormat.format(data.metrics.primaryCtaClicks)} clics en el CTA principal`;
-    $('#metricPlansReachRate').textContent = percentFormat(data.metrics.plansReachRate);
-    $('#metricPlansSectionViews').textContent = `${numberFormat.format(data.metrics.plansSectionViews)} sesiones llegaron a planes`;
-    $('#metricPageBottomRate').textContent = percentFormat(data.metrics.pageBottomRate);
-    $('#metricPageBottomReaches').textContent = `${numberFormat.format(data.metrics.pageBottomReaches)} sesiones llegaron al cierre`;
+    $('#metricPrimaryCtaClicks').textContent = `${numberFormat.format(data.metrics.primaryCtaClicks)} clics en el botón principal`;
     $('#metricModalOpens').textContent = numberFormat.format(data.metrics.modalOpens);
     $('#metricDetailsViews').textContent = `${numberFormat.format(data.metrics.detailsViews)} vistas del paso de envío`;
     $('#metricConfirmAbandonment').textContent = data.metrics.detailsViews
@@ -198,7 +188,7 @@
     $('#metricCancelPrompts').textContent = numberFormat.format(data.metrics.cancelPrompts);
     $('#metricCancelOutcomes').textContent = `${numberFormat.format(data.metrics.cancelConfirmed)} aceptadas · ${numberFormat.format(data.metrics.cancelDismissed)} descartadas`;
     $('#metricAbandonment').textContent = percentFormat(data.metrics.abandonmentRate);
-    $('#metricAbandonmentCount').textContent = `${numberFormat.format(data.metrics.abandonments)} procesos identificados`;
+    $('#metricAbandonmentCount').textContent = `${numberFormat.format(data.metrics.abandonments)} procesos sin finalizar`;
     $('#metricCancellationRate').textContent = data.metrics.subscriptions
       ? percentFormat(data.metrics.cancellationRate)
       : '—';
@@ -215,7 +205,6 @@
     renderRank($('#optionList'), data.options, row => `${row.bagSize || 'Tamaño sin dato'} · cada ${row.frequencyDays || '—'} días`, row => row.total);
     renderFunnel(data.funnel);
     renderFunnel(data.microFunnel, $('#microFunnelList'));
-    renderRank($('#scrollDepthList'), data.scrollDepth, row => `${row.depth}% de scroll`, row => row.sessions);
     renderRank($('#optionSelectionList'), data.optionSelections, row => `${row.option === 'bagSize' ? 'Tamaño' : 'Frecuencia'}: ${row.value}`, row => row.total);
     renderRank($('#faqQuestionList'), data.faqQuestions, row => row.question, row => row.total);
   }
@@ -492,7 +481,7 @@
     const search = $('#leadSearch').value.trim();
     if (search) params += `&search=${encodeURIComponent(search)}`;
     const data = await jsonApi(`leads?${params}`);
-    $('#leadCount').textContent = `${data.leads.length} registros mostrados`;
+    $('#leadCount').textContent = `${data.leads.length} contactos mostrados`;
     renderTableRows($('#leadRows'), data.leads, [
       { key: 'user_id', render: (td, row) => { td.textContent = row.user_id || 'Sin cuenta'; } },
       { key: 'name' }, { key: 'email' }, { key: 'phone' },
@@ -501,10 +490,10 @@
       { key: 'converted', render: (td, row) => {
         const badge = document.createElement('span');
         badge.className = `status-pill${row.converted ? '' : ' simulated'}`;
-        badge.textContent = row.converted ? 'Convirtió' : 'Lead';
+        badge.textContent = row.converted ? 'Envió una solicitud' : 'Sin solicitud';
         td.append(badge);
       } }
-    ], 'No se encontraron leads en el rango elegido.');
+    ], 'No se encontraron contactos en el rango elegido.');
   }
 
   async function loadEvents(params) {
@@ -530,12 +519,10 @@
       { key: 'placement', render: (td, row) => {
         td.textContent = [
           row.placement && `Ubicación: ${row.placement}`,
-          row.label && `CTA: ${row.label}`,
+          row.label && `Botón: ${row.label}`,
           row.option && `Opción: ${row.option} → ${row.value || '—'}`,
-          row.depth && `Scroll: ${row.depth}%`,
           row.question && `FAQ: ${row.question}`,
-          row.section && `Sección: ${row.section}`,
-          row.mode && `Modal: ${row.mode}`,
+          row.mode && `Ventana: ${row.mode}`,
           row.stage && `Paso: ${row.stage}`
         ].filter(Boolean).join(' · ') || '—';
       } },
