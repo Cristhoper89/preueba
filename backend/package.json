@@ -1,0 +1,18 @@
+{
+  "name": "cafe-aurora-landing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Landing page y flujo de suscripcion simulado para Cafe Aurora",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "admin:create": "node scripts/create-admin.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

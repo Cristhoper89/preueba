@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f0e6">
+  <meta name="description" content="Panel interno de marketing de Café Aurora">
+  <title>Panel de marketing — Café Aurora</title>
+  <link rel="stylesheet" href="/marketing/styles.css">
+  <script src="/marketing/app.js" defer></script>
+</head>
+<body>
+  <main id="loginView" class="login-view hidden">
+    <form class="login-card" id="loginForm">
+      <a class="brand" href="/" aria-label="Café Aurora"><span class="brand-mark">A</span><span>café <b>aurora</b><small>PANEL INTERNO</small></span></a>
+      <p class="eyebrow">ACCESO DE PERSONAL</p>
+      <h1>Tu negocio,<br><em>en perspectiva.</em></h1>
+      <p class="muted">Ingresa con las credenciales de tu equipo.</p>
+      <label>Correo electrónico<input name="email" type="email" autocomplete="username" required maxlength="254"></label>
+      <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="loginError" role="alert"></p>
+      <button class="button button-dark" id="loginButton" type="submit">Ingresar al panel <span>→</span></button>
+      <a class="back-link" href="/">← Volver a Café Aurora</a>
+    </form>
+  </main>
+
+  <div id="appView" class="app-view hidden">
+    <aside class="sidebar">
+      <a class="brand" href="/marketing/"><span class="brand-mark">A</span><span>café <b>aurora</b><small>PANEL DE MARKETING</small></span></a>
+      <div class="workspace-label">ESPACIO DE TRABAJO</div>
+      <nav class="side-nav" aria-label="Secciones del panel">
+        <button data-section="dashboard" class="active"><span>◫</span> Resumen general</button>
+        <button data-section="campaigns"><span>◎</span> Campañas</button>
+        <button data-section="leads"><span>♙</span> Visitantes y leads</button>
+        <button data-section="events"><span>⌁</span> Comportamiento</button>
+        <button data-section="subscriptions"><span>▤</span> Suscripciones</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="secure-mark">●</span><span>Datos internos<br><small>Acceso protegido</small></span>
+        <button id="logoutButton" class="logout-button">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">CAFÉ AURORA <span>·</span> PANEL INTERNO</p><h1 id="pageTitle">Resumen general</h1></div>
+        <div class="user-chip"><span class="user-avatar">A</span><span><b id="userEmail"></b><small id="userRole"></small></span></div>
+      </header>
+
+      <div class="filter-bar">
+        <label>Desde<input id="dateFrom" type="date"></label>
+        <label>Hasta<input id="dateTo" type="date"></label>
+        <label>Fuente<input id="filterSource" type="text" placeholder="Instagram, Google..." maxlength="120"></label>
+        <label>Medio<input id="filterMedium" type="text" placeholder="social, cpc..." maxlength="120"></label>
+        <label>Campaña<input id="filterCampaign" type="text" placeholder="Nombre de campaña" maxlength="160"></label>
+        <button id="applyFilters" class="button button-dark">Aplicar filtros</button>
+        <span id="rangeLabel" class="range-label"></span>
+      </div>
+      <div id="pageError" class="page-error hidden" role="alert"></div>
+      <div id="loadingState" class="loading-state hidden">Consultando información de PostgreSQL…</div>
+
+      <section class="page-section" id="section-dashboard">
+        <div class="section-intro"><div><h2>Una mirada a tu crecimiento</h2><p>Indicadores calculados directamente de los registros disponibles.</p></div><button class="button button-outline export-button" data-export="dashboard">Exportar resumen CSV</button></div>
+        <div class="metric-grid">
+          <article class="metric-card"><span>Visitas</span><strong id="metricVisits">—</strong><small>Vistas de página registradas</small></article>
+          <article class="metric-card"><span>Visitantes identificables</span><strong id="metricVisitors">—</strong><small>Sesiones distintas, no personas únicas</small></article>
+          <article class="metric-card"><span>Clientes potenciales</span><strong id="metricLeads">—</strong><small>Registros de correo con consentimiento</small></article>
+          <article class="metric-card"><span>Clics en planes</span><strong id="metricCta">—</strong><small>Selecciones de plan registradas</small></article>
+          <article class="metric-card"><span>Inicios de suscripción</span><strong id="metricStarts">—</strong><small>Procesos iniciados</small></article>
+          <article class="metric-card"><span>Suscripciones registradas</span><strong id="metricSubscriptions">—</strong><small>Solicitudes recibidas</small></article>
+          <article class="metric-card"><span>Conversión sobre visitas</span><strong id="metricConversion">—</strong><small>Suscripciones ÷ visitas</small></article>
+          <article class="metric-card"><span>CTR interno</span><strong id="metricCtr">—</strong><small>Clics en planes ÷ visitas</small></article>
+          <article class="metric-card"><span>Abandono identificable</span><strong id="metricAbandonment">—</strong><small id="metricAbandonmentCount">Sin procesos abandonados</small></article>
+        </div>
+        <div class="chart-grid">
+          <article class="panel-card chart-card"><div class="panel-heading"><div><h3>Visitas y conversiones</h3><p>Evolución diaria en el rango seleccionado</p></div><div class="legend"><span><i class="legend-visits"></i>Visitas</span><span><i class="legend-subs"></i>Suscripciones</span></div></div><canvas id="trendChart" aria-label="Gráfico de visitas y suscripciones por día"></canvas><p class="chart-empty hidden" id="chartEmpty">No hay datos en este rango de fechas.</p></article>
+          <article class="panel-card"><div class="panel-heading"><div><h3>Origen del tráfico</h3><p>Visitas por fuente de adquisición</p></div></div><div id="sourceChart" class="bar-list"></div></article>
+        </div>
+        <div class="chart-grid">
+          <article class="panel-card"><div class="panel-heading"><div><h3>Planes de mayor interés</h3><p>Selecciones de plan registradas</p></div></div><div id="planList" class="rank-list"></div></article>
+          <article class="panel-card"><div class="panel-heading"><div><h3>Recorrido de conversión</h3><p>Embudo de conversión registrado</p></div></div><div id="funnelList" class="funnel-list"></div></article>
+        </div>
+        <div class="chart-grid">
+          <article class="panel-card"><div class="panel-heading"><div><h3>Preferencias de entrega</h3><p>Tamaño y frecuencia de suscripciones registradas</p></div></div><div id="optionList" class="rank-list"></div></article>
+          <article class="panel-card"><div class="panel-heading"><div><h3>Conversión de leads</h3><p>Leads y suscripciones asociados a la misma cuenta</p></div></div><div class="lead-conversion"><strong id="leadConversionRate">—</strong><span>de los leads del período</span></div></article>
+        </div>
+        <div class="note-banner">Los visitantes identificables se estiman con sesiones del navegador. Una persona puede tener varias sesiones. CAC y LTV no se muestran: no existen datos de inversión ni ingresos reales.</div>
+      </section>
+
+      <section class="page-section hidden" id="section-campaigns">
+        <div class="section-intro"><div><h2>Campañas y adquisición</h2><p>Compara visitas y suscripciones según los parámetros UTM guardados.</p></div><button class="button button-outline export-button" data-export="campaigns">Exportar campañas CSV</button></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Fuente</th><th>Medio</th><th>Campaña</th><th>Visitas</th><th>Suscripciones</th><th>Conversión</th></tr></thead><tbody id="campaignRows"></tbody></table></div></div>
+        <p class="footnote">Los parámetros gclid y fbclid se conservan cuando están presentes. “Sin campaña” indica que no se recibió un UTM correspondiente.</p>
+      </section>
+
+      <section class="page-section hidden" id="section-leads">
+        <div class="section-intro"><div><h2>Personas interesadas</h2><p>Consulta los contactos recopilados con consentimiento.</p></div><button class="button button-outline export-button" data-export="leads">Exportar leads CSV</button></div>
+        <div class="table-tools"><label class="search-field">Buscar por nombre o correo<input id="leadSearch" type="search" placeholder="Escribe para buscar…" maxlength="160"></label><span id="leadCount" class="range-label"></span></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Usuario ID</th><th>Contacto</th><th>Correo electrónico</th><th>Teléfono</th><th>Origen</th><th>Campaña</th><th>Registro</th><th>Estado</th></tr></thead><tbody id="leadRows"></tbody></table></div></div>
+      </section>
+
+      <section class="page-section hidden" id="section-events">
+        <div class="section-intro"><div><h2>Comportamiento</h2><p>Interacciones de la landing y cambios de suscripción registrados en el backend.</p></div><button class="button button-outline export-button" data-export="events">Exportar eventos CSV</button></div>
+        <div class="table-tools"><label>Tipo de evento<select id="eventType"><option value="">Todos los eventos</option><option value="page_view">Visita</option><option value="plan_selected">Selección de plan / CTA</option><option value="checkout_started">Inicio de suscripción</option><option value="checkout_abandoned">Abandono</option><option value="subscription_confirmed">Suscripción confirmada</option><option value="subscription_updated">Plan actualizado</option><option value="subscription_cancelled">Plan cancelado</option><option value="lead_captured">Lead capturado</option></select></label></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Cuenta / sesión</th><th>Plan / cambio</th><th>Fuente / campaña</th><th>Fecha</th></tr></thead><tbody id="eventRows"></tbody></table></div></div>
+      </section>
+
+      <section class="page-section hidden" id="section-subscriptions">
+        <div class="section-intro"><div><h2>Suscripciones</h2><p>Solicitudes recibidas en el sitio.</p></div><button class="button button-outline export-button" data-export="subscriptions">Exportar registros CSV</button></div>
+        <div class="table-tools"><label>Plan<select id="subscriptionPlan"><option value="">Todos los planes</option><option value="esencial">Aurora Esencial</option><option value="explorador">Dúo Explorador</option><option value="reserva">Reserva de la Casa</option></select></label></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Usuario ID</th><th>Cliente</th><th>Correo</th><th>Plan</th><th>Tamaño</th><th>Frecuencia</th><th>Valor por entrega</th><th>Estado</th><th>Fecha</th></tr></thead><tbody id="subscriptionRows"></tbody></table></div></div>
+      </section>
+      <footer class="app-footer">Café Aurora · Panel interno · Datos de actividad</footer>
+    </main>
+  </div>
+</body>
+</html>
