@@ -403,6 +403,37 @@ function registerMarketingRoutes(app, pool) {
         subscriptionFilters
       )
     ]);
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const periodDays = Math.round((Date.parse(`${to}T00:00:00.000Z`) - fromDate.getTime()) / 86400000) + 1;
+    const previousToDate = new Date(fromDate.getTime() - 86400000);
+    const previousFromDate = new Date(fromDate.getTime() - periodDays * 86400000);
+    const previousFrom = previousFromDate.toISOString().slice(0, 10);
+    const previousTo = previousToDate.toISOString().slice(0, 10);
+    const previousEventFilters = [previousFrom, previousTo];
+    const previousEventFilterSql = addDimensionFilters(previousEventFilters, { source, medium, campaign });
+    const previousLeadFilters = [previousFrom, previousTo];
+    const previousLeadFilterSql = addDimensionFilters(previousLeadFilters, { source, medium, campaign }, 'l');
+    const previousSubscriptionFilters = [previousFrom, previousTo];
+    const previousSubscriptionFilterSql = addDimensionFilters(previousSubscriptionFilters, { source, medium, campaign });
+    const [previousVisitsResult, previousLeadsResult, previousSubscriptionsResult] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) AS total FROM events
+         WHERE event_name = 'page_view'
+           AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${previousEventFilterSql}`,
+        previousEventFilters
+      ),
+      pool.query(
+        `SELECT COUNT(*) AS total FROM leads l
+         WHERE l.consent = TRUE
+           AND l.created_at >= $1::date AND l.created_at < ($2::date + INTERVAL '1 day')${previousLeadFilterSql}`,
+        previousLeadFilters
+      ),
+      pool.query(
+        `SELECT COUNT(*) AS total FROM subscriptions
+         WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${previousSubscriptionFilterSql}`,
+        previousSubscriptionFilters
+      )
+    ]);
     const metric = metricsResult.rows[0];
     const sessionMetrics = sessionMetricsResult.rows[0];
     const visits = Number(metric.visits);
@@ -414,6 +445,9 @@ function registerMarketingRoutes(app, pool) {
     const detailsSessions = Number(confirmationAbandonmentResult.rows[0].details_sessions);
     const confirmSessions = Number(interactions.confirm_sessions);
     const leads = Number(leadsResult.rows[0].total);
+    const previousVisits = Number(previousVisitsResult.rows[0].total);
+    const previousLeads = Number(previousLeadsResult.rows[0].total);
+    const previousSubscriptions = Number(previousSubscriptionsResult.rows[0].total);
     const convertedFilters = [from, to];
     let convertedFilterSql = '';
     for (const [column, value] of [['source', source], ['medium', medium], ['campaign', campaign]]) {
@@ -434,6 +468,7 @@ function registerMarketingRoutes(app, pool) {
     await audit(req, 'dashboard_view', { from, to, source, medium, campaign });
     res.json({
       range: { from, to },
+      previousRange: { from: previousFrom, to: previousTo },
       metrics: {
         visits,
         visitors: Number(metric.visitors),
@@ -466,6 +501,12 @@ function registerMarketingRoutes(app, pool) {
         cancelDismissed: Number(interactions.cancel_dismissed),
         abandonments: Number(metric.abandonments),
         leadConversionRate: leads ? Number(convertedLeads.rows[0].total) / leads * 100 : 0
+      },
+      previousMetrics: {
+        visits: previousVisits,
+        subscriptions: previousSubscriptions,
+        leads: previousLeads,
+        conversionRate: previousVisits ? previousSubscriptions / previousVisits * 100 : 0
       },
       timeseries: daysResult.rows.map(row => ({ day: row.day, visits: Number(row.visits), subscriptions: Number(row.subscriptions) })),
       sources: sourcesResult.rows.map(row => ({ source: row.source, visits: Number(row.visits) })),

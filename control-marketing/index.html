@@ -60,33 +60,47 @@
       <div id="loadingState" class="loading-state hidden">Consultando información de PostgreSQL…</div>
 
       <section class="page-section" id="section-dashboard">
-        <div class="section-intro"><div><h2>Una mirada a tu crecimiento</h2><p>Indicadores calculados directamente de los registros disponibles.</p></div><button class="button button-outline export-button" data-export="dashboard">Exportar resumen CSV</button></div>
-        <div class="metric-grid">
-          <article class="metric-card"><span>Visitas</span><strong id="metricVisits">—</strong><small>Vistas de página registradas</small></article>
-          <article class="metric-card"><span>Visitantes identificables</span><strong id="metricVisitors">—</strong><small>Sesiones distintas, no personas únicas</small></article>
-          <article class="metric-card"><span>Clientes potenciales</span><strong id="metricLeads">—</strong><small>Registros de correo con consentimiento</small></article>
-          <article class="metric-card"><span>Clics en planes</span><strong id="metricCta">—</strong><small>Selecciones de plan registradas</small></article>
-          <article class="metric-card"><span>Inicios de suscripción</span><strong id="metricStarts">—</strong><small>Procesos iniciados</small></article>
-          <article class="metric-card"><span>Suscripciones registradas</span><strong id="metricSubscriptions">—</strong><small>Solicitudes recibidas</small></article>
-          <article class="metric-card"><span>Conversión sobre visitas</span><strong id="metricConversion">—</strong><small>Suscripciones ÷ visitas</small></article>
-          <article class="metric-card"><span>Selección de planes / visitas</span><strong id="metricCtr">—</strong><small>Clics en “Elegir este plan” ÷ visitas</small></article>
-          <article class="metric-card"><span>Abandono identificable</span><strong id="metricAbandonment">—</strong><small id="metricAbandonmentCount">Sin procesos abandonados</small></article>
-          <article class="metric-card"><span>Tiempo promedio en el sitio</span><strong id="metricAvgDuration">—</strong><small id="metricMeasuredSessions">Duración medida al salir del sitio</small></article>
-          <article class="metric-card"><span>Páginas por sesión</span><strong id="metricPagesPerSession">—</strong><small>Rutas distintas vistas por sesión</small></article>
-          <article class="metric-card"><span>Solicitudes canceladas</span><strong id="metricCancellationRate">—</strong><small id="metricCancellationCount">De las solicitudes creadas en el período</small></article>
-          <article class="metric-card"><span>Solicitudes no canceladas</span><strong id="metricNotCanceled">—</strong><small>Incluye solicitudes con estado simulado</small></article>
+        <div class="section-intro"><div><span class="eyebrow">PANEL DE CRECIMIENTO</span><h2>Una mirada a tu crecimiento</h2><p>Indicadores calculados directamente de los registros disponibles.</p></div><button class="button button-outline export-button" data-export="dashboard">Exportar resumen CSV</button></div>
+        <div class="kpi-grid">
+          <article class="metric-card kpi-card kpi-traffic"><span>Visitas</span><strong id="metricVisits">—</strong><small>Vistas de página registradas</small><div class="trend-indicator" id="trendVisits" aria-live="polite"></div></article>
+          <article class="metric-card kpi-card kpi-primary"><span>Solicitudes recibidas</span><strong id="metricSubscriptions">—</strong><small>Suscripciones simuladas, sin pagos reales</small><div class="trend-indicator" id="trendSubscriptions" aria-live="polite"></div></article>
+          <article class="metric-card kpi-card kpi-conversion"><span>Conversión sobre visitas</span><strong id="metricConversion">—</strong><small>Solicitudes ÷ visitas</small><div class="trend-indicator" id="trendConversion" aria-live="polite"></div></article>
+          <article class="metric-card kpi-card kpi-leads"><span>Clientes potenciales</span><strong id="metricLeads">—</strong><small>Correos registrados con consentimiento</small><div class="trend-indicator" id="trendLeads" aria-live="polite"></div></article>
         </div>
-        <div class="metric-grid" style="margin-top:12px">
-          <article class="metric-card"><span>CTR del CTA principal</span><strong id="metricPrimaryCtaRate">—</strong><small id="metricPrimaryCtaClicks">Clics en “Quiero mi café Aurora”</small></article>
-          <article class="metric-card"><span>Alcance de la sección de planes</span><strong id="metricPlansReachRate">—</strong><small id="metricPlansSectionViews">Sesiones que llegaron a los planes</small></article>
-          <article class="metric-card"><span>Alcance del final de página</span><strong id="metricPageBottomRate">—</strong><small id="metricPageBottomReaches">Sesiones que llegaron al cierre</small></article>
-          <article class="metric-card"><span>Aperturas del modal</span><strong id="metricModalOpens">—</strong><small id="metricDetailsViews">Vistas de “¿A dónde lo enviamos?”</small></article>
-          <article class="metric-card"><span>Abandono antes de confirmar</span><strong id="metricConfirmAbandonment">—</strong><small id="metricConfirmAttempts">Intentos de confirmación</small></article>
-          <article class="metric-card"><span>Preguntas frecuentes abiertas</span><strong id="metricFaqOpens">—</strong><small>Interacciones con los acordeones</small></article>
-          <article class="metric-card"><span>Alertas de cancelación</span><strong id="metricCancelPrompts">—</strong><small id="metricCancelOutcomes">Respuestas a la alerta</small></article>
-        </div>
+        <p class="comparison-caption" id="comparisonCaption">Comparación con el período anterior de igual duración.</p>
+        <section class="metric-section" aria-labelledby="trafficHeading">
+          <div class="metric-section-heading"><span class="section-marker marker-green"></span><h3 id="trafficHeading">Tráfico y navegación</h3></div>
+          <div class="metric-grid">
+            <article class="metric-card"><span>Visitantes identificables</span><strong id="metricVisitors">—</strong><small>Sesiones distintas, no personas únicas</small></article>
+            <article class="metric-card"><span>Clics en planes</span><strong id="metricCta">—</strong><small>Selecciones de plan registradas</small></article>
+            <article class="metric-card"><span>Tiempo promedio en el sitio</span><strong id="metricAvgDuration">—</strong><small id="metricMeasuredSessions">Duración medida al salir del sitio</small></article>
+            <article class="metric-card"><span>Páginas por sesión</span><strong id="metricPagesPerSession">—</strong><small>Rutas distintas vistas por sesión</small></article>
+          </div>
+        </section>
+        <section class="metric-section" aria-labelledby="conversionHeading">
+          <div class="metric-section-heading"><span class="section-marker marker-terra"></span><h3 id="conversionHeading">Conversión y embudo</h3></div>
+          <div class="metric-grid">
+            <article class="metric-card"><span>Inicios de suscripción</span><strong id="metricStarts">—</strong><small>Procesos iniciados</small></article>
+            <article class="metric-card"><span>Selección de planes / visitas</span><strong id="metricCtr">—</strong><small>Clics en “Elegir este plan” ÷ visitas</small></article>
+            <article class="metric-card"><span>Abandono identificable</span><strong id="metricAbandonment">—</strong><small id="metricAbandonmentCount">Sin procesos abandonados</small></article>
+          </div>
+        </section>
+        <section class="metric-section" aria-labelledby="engagementHeading">
+          <div class="metric-section-heading"><span class="section-marker marker-coffee"></span><h3 id="engagementHeading">Interacción y preferencias</h3></div>
+          <div class="metric-grid">
+            <article class="metric-card"><span>CTR del CTA principal</span><strong id="metricPrimaryCtaRate">—</strong><small id="metricPrimaryCtaClicks">Clics en “Quiero mi café Aurora”</small></article>
+            <article class="metric-card"><span>Alcance de la sección de planes</span><strong id="metricPlansReachRate">—</strong><small id="metricPlansSectionViews">Sesiones que llegaron a los planes</small></article>
+            <article class="metric-card"><span>Alcance del final de página</span><strong id="metricPageBottomRate">—</strong><small id="metricPageBottomReaches">Sesiones que llegaron al cierre</small></article>
+            <article class="metric-card"><span>Aperturas del modal</span><strong id="metricModalOpens">—</strong><small id="metricDetailsViews">Vistas de “¿A dónde lo enviamos?”</small></article>
+            <article class="metric-card"><span>Abandono antes de confirmar</span><strong id="metricConfirmAbandonment">—</strong><small id="metricConfirmAttempts">Intentos de confirmación</small></article>
+            <article class="metric-card"><span>Preguntas frecuentes abiertas</span><strong id="metricFaqOpens">—</strong><small>Interacciones con los acordeones</small></article>
+            <article class="metric-card"><span>Alertas de cancelación</span><strong id="metricCancelPrompts">—</strong><small id="metricCancelOutcomes">Respuestas a la alerta</small></article>
+            <article class="metric-card"><span>Solicitudes no canceladas</span><strong id="metricNotCanceled">—</strong><small>Incluye solicitudes con estado simulado</small></article>
+            <article class="metric-card"><span>Solicitudes canceladas</span><strong id="metricCancellationRate">—</strong><small id="metricCancellationCount">De las solicitudes creadas en el período</small></article>
+          </div>
+        </section>
         <div class="chart-grid">
-          <article class="panel-card chart-card"><div class="panel-heading"><div><h3>Visitas y conversiones</h3><p>Evolución diaria en el rango seleccionado</p></div><div class="legend"><span><i class="legend-visits"></i>Visitas</span><span><i class="legend-subs"></i>Suscripciones</span></div></div><canvas id="trendChart" aria-label="Gráfico de visitas y suscripciones por día"></canvas><p class="chart-empty hidden" id="chartEmpty">No hay datos en este rango de fechas.</p></article>
+          <article class="panel-card chart-card"><div class="panel-heading"><div><h3>Visitas y solicitudes</h3><p>Tendencia diaria en el rango seleccionado</p></div><div class="legend"><span><i class="legend-visits"></i>Visitas</span><span><i class="legend-subs"></i>Solicitudes</span></div></div><div class="trend-axis-labels"><span>Visitas</span><span>Solicitudes</span></div><div class="trend-chart-wrap"><canvas id="trendChart" tabindex="0" aria-label="Gráfico de áreas de visitas y solicitudes por día. Usa las flechas izquierda y derecha para explorar los días." aria-describedby="trendChartHint"></canvas><div class="chart-tooltip hidden" id="trendTooltip" role="status"></div></div><div class="chart-x-caption" id="trendChartHint">Fecha de registro · pasa el cursor o usa las flechas para ver cada día</div><p class="chart-empty hidden" id="chartEmpty">No hay datos en este rango de fechas.</p></article>
           <article class="panel-card"><div class="panel-heading"><div><h3>Origen del tráfico</h3><p>Visitas por fuente de adquisición</p></div></div><div id="sourceChart" class="bar-list"></div></article>
         </div>
         <div class="chart-grid">

@@ -29,6 +29,7 @@
     cancel_confirmation_dismissed: 'Cancelación descartada'
   };
   const state = { user: null, section: 'dashboard', dashboard: null };
+  let chartHoverIndex = null;
   const numberFormat = new Intl.NumberFormat('es-CO');
   const percentFormat = value => `${Number(value || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 })}%`;
   const durationFormat = value => {
@@ -165,6 +166,7 @@
   async function loadDashboard(params) {
     const data = await jsonApi(`dashboard?${params}`);
     state.dashboard = data;
+    $('#comparisonCaption').textContent = `Comparado con ${data.previousRange.from} — ${data.previousRange.to} (período anterior de igual duración).`;
     $('#metricVisits').textContent = numberFormat.format(data.metrics.visits);
     $('#metricVisitors').textContent = numberFormat.format(data.metrics.visitors);
     $('#metricAvgDuration').textContent = data.metrics.measuredSessions
@@ -203,6 +205,10 @@
     $('#metricCancellationCount').textContent = `${numberFormat.format(data.metrics.canceledSubscriptions)} solicitudes canceladas`;
     $('#metricNotCanceled').textContent = numberFormat.format(data.metrics.notCanceledSubscriptions);
     $('#leadConversionRate').textContent = percentFormat(data.metrics.leadConversionRate);
+    renderComparison('trendVisits', data.metrics.visits, data.previousMetrics.visits);
+    renderComparison('trendSubscriptions', data.metrics.subscriptions, data.previousMetrics.subscriptions);
+    renderComparison('trendConversion', data.metrics.conversionRate, data.previousMetrics.conversionRate, 'percentage-points');
+    renderComparison('trendLeads', data.metrics.leads, data.previousMetrics.leads);
     drawTrend(data.timeseries);
     renderBars($('#sourceChart'), data.sources, row => row.source, row => row.visits);
     renderRank($('#planList'), data.plans, row => labels[row.planId] || row.planId, row => row.selections);
@@ -214,72 +220,166 @@
     renderRank($('#faqQuestionList'), data.faqQuestions, row => row.question, row => row.total);
   }
 
-  function drawTrend(rows) {
+  function drawTrend(rows, selectedIndex = chartHoverIndex) {
     const canvas = $('#trendChart');
     const empty = $('#chartEmpty');
+    const tooltip = $('#trendTooltip');
     const hasData = rows.some(row => row.visits || row.subscriptions);
     if (!hasData) {
       canvas.classList.add('hidden');
       empty.classList.add('visible');
+      tooltip.classList.add('hidden');
       return;
     }
     const validRows = rows;
     canvas.classList.remove('hidden');
     empty.classList.remove('visible');
     const ratio = window.devicePixelRatio || 1;
-    const width = Math.max(300, canvas.clientWidth);
-    const height = 195;
+    const width = Math.max(280, canvas.clientWidth);
+    const height = 230;
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     const context = canvas.getContext('2d');
     context.scale(ratio, ratio);
     context.clearRect(0, 0, width, height);
-    const pad = { top: 13, right: 12, bottom: 28, left: 37 };
+    const pad = { top: 16, right: 42, bottom: 31, left: 42 };
     const graphWidth = width - pad.left - pad.right;
     const graphHeight = height - pad.top - pad.bottom;
-    const max = Math.max(1, ...validRows.map(row => Math.max(row.visits, row.subscriptions)));
-    context.font = '9px Arial';
+    const maxVisits = Math.max(1, ...validRows.map(row => row.visits));
+    const maxSubscriptions = Math.max(1, ...validRows.map(row => row.subscriptions));
+    const xAt = index => pad.left + (validRows.length === 1 ? graphWidth / 2 : graphWidth * index / (validRows.length - 1));
+    const yAt = (value, max) => pad.top + graphHeight * (1 - value / max);
+    context.font = '10px Arial';
     context.textAlign = 'right';
     context.fillStyle = '#91897d';
-    for (let tick = 0; tick <= 3; tick += 1) {
-      const y = pad.top + graphHeight * tick / 3;
+    for (let tick = 0; tick <= 4; tick += 1) {
+      const fraction = tick / 4;
+      const y = pad.top + graphHeight * fraction;
       context.strokeStyle = '#eee9e0';
       context.beginPath();
       context.moveTo(pad.left, y);
       context.lineTo(width - pad.right, y);
       context.stroke();
-      context.fillText(numberFormat.format(Math.round(max * (1 - tick / 3))), pad.left - 7, y + 3);
+      context.fillStyle = '#68816b';
+      context.textAlign = 'right';
+      context.fillText(numberFormat.format(Math.round(maxVisits * (1 - fraction))), pad.left - 7, y + 3);
+      context.fillStyle = '#a85f42';
+      context.textAlign = 'left';
+      context.fillText(numberFormat.format(Math.round(maxSubscriptions * (1 - fraction))), width - pad.right + 7, y + 3);
     }
-    const drawSeries = (key, color) => {
-      context.strokeStyle = color;
-      context.lineWidth = 2;
+    const visitGradient = context.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+    visitGradient.addColorStop(0, 'rgba(80, 106, 85, 0.28)');
+    visitGradient.addColorStop(1, 'rgba(80, 106, 85, 0.02)');
+    context.beginPath();
+    validRows.forEach((row, index) => {
+      const x = xAt(index);
+      const y = yAt(row.visits, maxVisits);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.lineTo(xAt(validRows.length - 1), height - pad.bottom);
+    context.lineTo(xAt(0), height - pad.bottom);
+    context.closePath();
+    context.fillStyle = visitGradient;
+    context.fill();
+    context.beginPath();
+    validRows.forEach((row, index) => {
+      const x = xAt(index);
+      const y = yAt(row.visits, maxVisits);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.strokeStyle = '#506a55';
+    context.lineWidth = 2.5;
+    context.stroke();
+    context.beginPath();
+    validRows.forEach((row, index) => {
+      const x = xAt(index);
+      const y = yAt(row.subscriptions, maxSubscriptions);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.strokeStyle = '#bd744b';
+    context.lineWidth = 2.5;
+    context.stroke();
+    validRows.forEach((row, index) => {
+      const x = xAt(index);
+      const y = yAt(row.subscriptions, maxSubscriptions);
       context.beginPath();
-      validRows.forEach((row, index) => {
-        const x = pad.left + (validRows.length === 1 ? graphWidth / 2 : graphWidth * index / (validRows.length - 1));
-        const y = pad.top + graphHeight * (1 - row[key] / max);
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      });
+      context.arc(x, y, selectedIndex === index ? 4 : 2.5, 0, Math.PI * 2);
+      context.fillStyle = '#bd744b';
+      context.fill();
+    });
+    if (selectedIndex != null && validRows[selectedIndex]) {
+      context.beginPath();
+      context.moveTo(xAt(selectedIndex), pad.top);
+      context.lineTo(xAt(selectedIndex), height - pad.bottom);
+      context.strokeStyle = '#766f6440';
+      context.lineWidth = 1;
       context.stroke();
-    };
-    drawSeries('visits', '#68816b');
-    drawSeries('subscriptions', '#bd744b');
-    const labelCount = Math.min(5, validRows.length);
+    }
+    const labelCount = Math.min(6, validRows.length);
     context.fillStyle = '#91897d';
     context.textAlign = 'center';
     for (let index = 0; index < labelCount; index += 1) {
-      const rowIndex = Math.round((validRows.length - 1) * index / Math.max(1, labelCount - 1));
+      const rowIndex = labelCount === 1 ? 0 : Math.round((validRows.length - 1) * index / (labelCount - 1));
       const row = validRows[rowIndex];
-      const x = pad.left + (validRows.length === 1 ? graphWidth / 2 : graphWidth * rowIndex / (validRows.length - 1));
-      context.fillText(new Date(`${row.day}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }), x, height - 7);
+      const x = xAt(rowIndex);
+      context.fillText(new Date(`${row.day}T12:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }), x, height - 8);
     }
+    if (selectedIndex != null && validRows[selectedIndex]) showTrendTooltip(validRows[selectedIndex], xAt(selectedIndex), width);
+    else tooltip.classList.add('hidden');
+  }
+
+  function showTrendTooltip(row, x, chartWidth) {
+    const tooltip = $('#trendTooltip');
+    const date = new Date(`${row.day}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    tooltip.textContent = `${date} · Visitas: ${numberFormat.format(row.visits)} · Solicitudes: ${numberFormat.format(row.subscriptions)}`;
+    tooltip.style.left = `${Math.max(104, Math.min(chartWidth - 104, x))}px`;
+    tooltip.classList.remove('hidden');
+  }
+
+  function renderComparison(id, currentValue, previousValue, mode = 'relative') {
+    const indicator = $(`#${id}`);
+    const current = Number(currentValue) || 0;
+    const previous = Number(previousValue) || 0;
+    indicator.className = 'trend-indicator';
+    if (previous === 0) {
+      indicator.classList.add(current === 0 ? 'trend-flat' : 'trend-up');
+      indicator.textContent = current === 0 ? 'Sin cambio · período anterior: 0' : '↑ Nuevo · período anterior: 0';
+      return;
+    }
+    const difference = current - previous;
+    const rising = difference > 0;
+    const falling = difference < 0;
+    indicator.classList.add(rising ? 'trend-up' : falling ? 'trend-down' : 'trend-flat');
+    if (mode === 'percentage-points') {
+      const points = Math.abs(difference);
+      indicator.textContent = `${rising ? '↑' : falling ? '↓' : '→'} ${points.toLocaleString('es-CO', { maximumFractionDigits: 2 })} pp vs período anterior`;
+      return;
+    }
+    const change = Math.abs(difference / previous * 100);
+    indicator.textContent = `${rising ? '↑' : falling ? '↓' : '→'} ${change.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% vs período anterior`;
+  }
+
+  function chartIndexAt(event) {
+    const canvas = $('#trendChart');
+    const rows = state.dashboard?.timeseries || [];
+    if (!rows.length) return null;
+    const rect = canvas.getBoundingClientRect();
+    const left = 42;
+    const right = 42;
+    const plotWidth = Math.max(1, rect.width - left - right);
+    const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left - left) / plotWidth));
+    return Math.round(fraction * (rows.length - 1));
   }
 
   function renderBars(container, rows, label, value) {
     container.replaceChildren();
     const max = Math.max(1, ...rows.map(value));
     if (!rows.length) return appendEmpty(container, 'No hay visitas para mostrar.');
-    rows.forEach(row => {
+    const palette = ['#506a55', '#bd744b', '#76604b', '#8c9a7f'];
+    rows.forEach((row, index) => {
       const item = document.createElement('div');
       item.className = 'bar-row';
       const name = document.createElement('span');
@@ -288,6 +388,7 @@
       track.className = 'bar-track';
       const fill = document.createElement('i');
       fill.style.width = `${Math.max(3, value(row) / max * 100)}%`;
+      fill.style.backgroundColor = palette[index % palette.length];
       track.append(fill);
       const total = document.createElement('b');
       total.textContent = numberFormat.format(value(row));
@@ -299,14 +400,22 @@
   function renderRank(container, rows, label, value) {
     container.replaceChildren();
     if (!rows.length) return appendEmpty(container, 'Aún no hay datos para mostrar.');
-    rows.forEach(row => {
+    const max = Math.max(1, ...rows.map(value));
+    const palette = ['#506a55', '#bd744b', '#76604b', '#8c9a7f'];
+    rows.forEach((row, index) => {
       const item = document.createElement('div');
       item.className = 'rank-row';
       const name = document.createElement('span');
       name.textContent = label(row);
       const total = document.createElement('b');
       total.textContent = numberFormat.format(value(row));
-      item.append(name, total);
+      const track = document.createElement('span');
+      track.className = 'bar-track rank-track';
+      const fill = document.createElement('i');
+      fill.style.width = `${Math.max(0, value(row) / max * 100)}%`;
+      fill.style.backgroundColor = palette[index % palette.length];
+      track.append(fill);
+      item.append(name, total, track);
       container.append(item);
     });
   }
@@ -314,7 +423,8 @@
   function renderFunnel(rows, container = $('#funnelList')) {
     container.replaceChildren();
     const max = Math.max(1, ...rows.map(row => row.total));
-    rows.forEach(row => {
+    const palette = ['#506a55', '#bd744b', '#76604b', '#8c9a7f'];
+    rows.forEach((row, index) => {
       const item = document.createElement('div');
       item.className = 'funnel-row';
       const name = document.createElement('span');
@@ -325,6 +435,7 @@
       track.className = 'funnel-track';
       const fill = document.createElement('i');
       fill.style.width = `${row.total / max * 100}%`;
+      fill.style.backgroundColor = palette[index % palette.length];
       track.append(fill);
       item.append(name, total, track);
       container.append(item);
@@ -531,6 +642,41 @@
   $('#eventType').addEventListener('change', loadSection);
   $('#subscriptionPlan').addEventListener('change', loadSection);
   $('#logoutButton').addEventListener('click', logout);
+  const trendCanvas = $('#trendChart');
+  trendCanvas.addEventListener('pointermove', event => {
+    const index = chartIndexAt(event);
+    if (index == null || index === chartHoverIndex) return;
+    chartHoverIndex = index;
+    drawTrend(state.dashboard.timeseries, index);
+  });
+  trendCanvas.addEventListener('pointerleave', () => {
+    chartHoverIndex = null;
+    if (state.dashboard) drawTrend(state.dashboard.timeseries, null);
+  });
+  trendCanvas.addEventListener('focus', () => {
+    if (!state.dashboard?.timeseries.length) return;
+    chartHoverIndex = chartHoverIndex ?? 0;
+    drawTrend(state.dashboard.timeseries, chartHoverIndex);
+  });
+  trendCanvas.addEventListener('blur', () => {
+    chartHoverIndex = null;
+    if (state.dashboard) drawTrend(state.dashboard.timeseries, null);
+  });
+  trendCanvas.addEventListener('keydown', event => {
+    const rows = state.dashboard?.timeseries || [];
+    if (!rows.length) return;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Escape') {
+      chartHoverIndex = null;
+      drawTrend(rows, null);
+      return;
+    }
+    if (event.key === 'Home') chartHoverIndex = 0;
+    else if (event.key === 'End') chartHoverIndex = rows.length - 1;
+    else chartHoverIndex = Math.max(0, Math.min(rows.length - 1, (chartHoverIndex ?? 0) + (event.key === 'ArrowRight' ? 1 : -1)));
+    drawTrend(rows, chartHoverIndex);
+  });
   let searchTimer;
   $('#leadSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);
