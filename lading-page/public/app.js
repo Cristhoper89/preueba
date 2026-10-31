@@ -201,8 +201,9 @@
   }
   function updateCustomerSessionButton() {
     const button = $('#customerSessionButton');
-    button.textContent = customerSignedIn ? 'Cerrar sesión' : 'Iniciar sesión';
-    button.setAttribute('aria-label', button.textContent);
+    const label = customerSignedIn ? 'Cerrar sesión' : 'Iniciar sesión';
+    $('#customerSessionLabel').textContent = label;
+    button.setAttribute('aria-label', label);
   }
   function resetAuthForm() {
     authenticatedCustomer = null;

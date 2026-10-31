@@ -9,16 +9,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=2">
+  <link rel="stylesheet" href="/styles.css?v=3">
 </head>
 <body>
   <div class="announcement">CAFÉ RECIÉN TOSTADO, DIRECTO A TU PUERTA <span>✳</span> ENVÍO GRATIS EN TU PRIMERA CAJA</div>
   <header class="site-header">
     <a class="brand" href="#inicio" aria-label="Café Aurora, inicio"><span class="brand-mark">A</span><span>café <b>aurora</b><small>CLUB DE CAFÉ DE ESPECIALIDAD</small></span></a>
     <nav class="desktop-nav"><a href="#beneficios">La experiencia</a><a href="#planes">Suscripciones</a><a href="#como-funciona">Cómo funciona</a></nav>
-    <button class="button button-small button-outline customer-session-button" id="customerSessionButton" type="button" disabled>Iniciar sesión</button>
-    <a class="button button-small button-dark header-cta" href="#planes">Encuentra tu café <span>↗</span></a>
-    <button class="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    <div class="header-actions">
+      <button class="button button-small customer-session-button" id="customerSessionButton" type="button" disabled>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span class="customer-session-label" id="customerSessionLabel">Iniciar sesión</span>
+      </button>
+      <a class="button button-small button-dark header-cta" href="#planes">Encuentra tu café <span>↗</span></a>
+      <button class="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </div>
   </header>
 
   <main>
