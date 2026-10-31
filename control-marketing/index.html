@@ -7,7 +7,7 @@
   <meta name="description" content="Panel interno de marketing de Café Aurora">
   <title>Panel de marketing — Café Aurora</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="app.js?v=2" defer></script>
+  <script src="app.js?v=3" defer></script>
 </head>
 <body>
   <main id="loginView" class="login-view hidden">
@@ -50,9 +50,9 @@
       <div class="filter-bar">
         <label>Desde<input id="dateFrom" type="date"></label>
         <label>Hasta<input id="dateTo" type="date"></label>
-        <label>Fuente<input id="filterSource" type="text" placeholder="Instagram, Google..." maxlength="120"></label>
-        <label>Medio<input id="filterMedium" type="text" placeholder="social, cpc..." maxlength="120"></label>
-        <label>Campaña<input id="filterCampaign" type="text" placeholder="Nombre de campaña" maxlength="160"></label>
+        <label>Fuente<select id="filterSource"><option value="">Todas las fuentes</option></select></label>
+        <label>Medio<select id="filterMedium"><option value="">Todos los medios</option></select></label>
+        <label>Campaña<select id="filterCampaign"><option value="">Todas las campañas</option></select></label>
         <button id="applyFilters" class="button button-dark">Aplicar filtros</button>
         <span id="rangeLabel" class="range-label"></span>
       </div>

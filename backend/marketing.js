@@ -53,8 +53,8 @@ function csvCell(value) {
 
 function csvResponse(res, filename, columns, rows) {
   const csv = [
-    columns.map(column => csvCell(column.label)).join(','),
-    ...rows.map(row => columns.map(column => csvCell(row[column.key])).join(','))
+    columns.map(column => csvCell(column.label)).join(';'),
+    ...rows.map(row => columns.map(column => csvCell(row[column.key])).join(';'))
   ].join('\r\n');
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="${filename}"`);
@@ -536,6 +536,22 @@ function registerMarketingRoutes(app, pool) {
       visits: Number(row.visits),
       subscriptions: Number(row.subscriptions)
     })) });
+  }));
+
+  router.get('/filter-options', requireUser, asyncRoute(async (req, res) => {
+    const { from, to } = dateFilters(req);
+    const result = await pool.query(
+      `SELECT DISTINCT NULLIF(BTRIM(source), '') AS source,
+              NULLIF(BTRIM(medium), '') AS medium,
+              NULLIF(BTRIM(campaign), '') AS campaign
+       FROM events
+       WHERE event_name = 'page_view'
+         AND created_at >= $1::date
+         AND created_at < ($2::date + INTERVAL '1 day')
+       ORDER BY source, medium, campaign`,
+      [from, to]
+    );
+    res.json({ dimensions: result.rows });
   }));
 
   router.get('/leads', requireUser, requirePermission('leads'), asyncRoute(async (req, res) => {

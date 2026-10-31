@@ -25,7 +25,7 @@
     cancel_confirmation_confirmed: 'Aceptó en alerta de cancelación',
     cancel_confirmation_dismissed: 'Cancelación descartada'
   };
-  const state = { user: null, section: 'dashboard', dashboard: null };
+  const state = { user: null, section: 'dashboard', dashboard: null, filterDimensions: [], filterRange: '' };
   let chartHoverIndex = null;
   const numberFormat = new Intl.NumberFormat('es-CO');
   const percentFormat = value => `${Number(value || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 })}%`;
@@ -84,6 +84,42 @@
       if (value) params.set(key, value);
     }
     return params.toString();
+  }
+
+  function renderDimensionOptions(select, placeholder, values, selectedValue) {
+    select.replaceChildren(new Option(placeholder, ''));
+    for (const value of values) select.add(new Option(value, value));
+    select.value = values.includes(selectedValue) ? selectedValue : '';
+  }
+
+  function updateDimensionOptions() {
+    const source = $('#filterSource').value;
+    const medium = $('#filterMedium').value;
+    const mediums = [...new Set(state.filterDimensions
+      .filter(row => !source || row.source === source)
+      .map(row => row.medium)
+      .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    renderDimensionOptions($('#filterMedium'), 'Todos los medios', mediums, medium);
+
+    const campaigns = [...new Set(state.filterDimensions
+      .filter(row => (!source || row.source === source) && (!$('#filterMedium').value || row.medium === $('#filterMedium').value))
+      .map(row => row.campaign)
+      .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    renderDimensionOptions($('#filterCampaign'), 'Todas las campañas', campaigns, $('#filterCampaign').value);
+  }
+
+  async function loadFilterDimensions() {
+    const range = `${$('#dateFrom').value}|${$('#dateTo').value}`;
+    if (state.filterRange === range) return;
+    const params = new URLSearchParams({ from: $('#dateFrom').value, to: $('#dateTo').value });
+    const data = await jsonApi(`filter-options?${params}`);
+    state.filterDimensions = data.dimensions;
+    state.filterRange = range;
+    const selectedSource = $('#filterSource').value;
+    const sources = [...new Set(state.filterDimensions.map(row => row.source).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    renderDimensionOptions($('#filterSource'), 'Todas las fuentes', sources, selectedSource);
+    updateDimensionOptions();
   }
 
   function setDefaultDates() {
@@ -146,6 +182,7 @@
     clearError();
     $('#loadingState').classList.remove('hidden');
     try {
+      await loadFilterDimensions();
       const params = filterParams();
       $('#rangeLabel').textContent = `${$('#dateFrom').value} — ${$('#dateTo').value}`;
       if (state.section === 'dashboard') await loadDashboard(params);
@@ -626,6 +663,8 @@
 
   $('#loginForm').addEventListener('submit', submitLogin);
   $('#applyFilters').addEventListener('click', loadSection);
+  $('#filterSource').addEventListener('change', updateDimensionOptions);
+  $('#filterMedium').addEventListener('change', updateDimensionOptions);
   $('#eventType').addEventListener('change', loadSection);
   $('#subscriptionPlan').addEventListener('change', loadSection);
   $('#logoutButton').addEventListener('click', logout);
