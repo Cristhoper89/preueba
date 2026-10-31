@@ -8,6 +8,7 @@
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
   const $ = selector => document.querySelector(selector);
   const checkout = $('#checkout');
+  const cancelDialog = $('#cancelDialog');
   const sessionId = getSessionId();
   const params = new URLSearchParams(location.search);
   if (!sessionStorage.getItem('aurora_attribution')) {
@@ -260,12 +261,20 @@
       card.querySelector('.cancel-plan').classList.toggle('hidden', !currentPlan);
     });
   }
-  async function cancelActiveSubscription(button) {
+  let cancelTrigger = null;
+  function cancelActiveSubscription(button) {
     if (!activeSubscription) return;
     track('cancel_confirmation_prompt', activeSubscription.plan_id);
-    const confirmed = window.confirm('¿Quieres cancelar tu plan activo ahora?');
-    track(confirmed ? 'cancel_confirmation_confirmed' : 'cancel_confirmation_dismissed', activeSubscription.plan_id);
-    if (!confirmed) return;
+    cancelTrigger = button;
+    cancelDialog.returnValue = '';
+    cancelDialog.showModal();
+    $('#keepPlanButton').focus();
+  }
+  async function confirmCancelSubscription() {
+    if (!activeSubscription || !cancelTrigger) return;
+    const button = cancelTrigger;
+    track('cancel_confirmation_confirmed', activeSubscription.plan_id);
+    cancelDialog.close('confirm');
     button.disabled = true;
     try {
       const response = await fetch(apiUrl('/api/subscriptions/active/cancel'), {
@@ -276,15 +285,41 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo cancelar el plan.');
+      const currentPlan = activeSubscription.plan_id;
       activeSubscription = null;
       renderPlanActions();
+      document.querySelector(`.plan-card[data-plan="${currentPlan}"] .choose-plan`).focus();
       toast('Tu plan quedó cancelado.');
     } catch (error) {
       toast(error.message);
     } finally {
       button.disabled = false;
+      if (activeSubscription) button.focus();
+      cancelTrigger = null;
     }
   }
+  $('#keepPlanButton').addEventListener('click', () => cancelDialog.close('dismiss'));
+  $('#confirmCancelButton').addEventListener('click', confirmCancelSubscription);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && cancelDialog.open) {
+      event.preventDefault();
+      cancelDialog.close('dismiss');
+    }
+  });
+  cancelDialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    cancelDialog.close('dismiss');
+  });
+  cancelDialog.addEventListener('click', event => {
+    if (event.target === cancelDialog) cancelDialog.close('dismiss');
+  });
+  cancelDialog.addEventListener('close', () => {
+    if (cancelDialog.returnValue !== 'confirm') {
+      track('cancel_confirmation_dismissed', activeSubscription?.plan_id || '');
+      cancelTrigger?.focus();
+      cancelTrigger = null;
+    }
+  });
   document.querySelectorAll('.choose-plan').forEach(button => button.addEventListener('click', () => openCheckout(button.dataset.plan)));
   document.querySelectorAll('.cancel-plan').forEach(button => button.addEventListener('click', () => cancelActiveSubscription(button)));
   $('#bagSize').addEventListener('change', event => {
