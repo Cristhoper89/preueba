@@ -37,6 +37,16 @@ docker compose up --build
 
 La landing queda disponible en `http://localhost:8081`, el panel en `http://localhost:8080` y el backend en `http://localhost:3000`. Las interfaces web envían sus solicitudes `/api/` al servicio `backend` de Compose.
 
+### Coolify
+
+Los Dockerfiles usan rutas relativas a la raíz del repositorio. Al crear cada servicio Dockerfile en Coolify, configura el **Base Directory / Build Context** como `/` y la ruta del Dockerfile según el servicio:
+
+- Backend: `/backend/Dockerfile`
+- Panel: `/control-marketing/Dockerfile`
+- Landing: `/lading-page/Dockerfile`
+
+La carpeta de la landing se llama `lading-page` en este repositorio. Si se despliega con Docker Compose, usa el `docker-compose.yml` de la raíz, que ya define el contexto raíz para cada servicio. El `.dockerignore` raíz excluye dependencias y archivos `.env`, pero no excluye las carpetas de la aplicación.
+
 ### Cuentas de clientes
 
 Al crear una cuenta se solicitan nombre, correo, contraseña, teléfono, ciudad y dirección de entrega; estos últimos datos quedan guardados en el perfil y se reutilizan al iniciar sesión. Las contraseñas deben tener al menos 12 caracteres y se almacenan con `scrypt`; las sesiones usan cookies `HttpOnly` y registros de sesión en PostgreSQL. Las suscripciones y los leads capturados por una cuenta quedan relacionados mediante `user_id`. Antes de registrar un lead, el backend normaliza el correo y consulta PostgreSQL; si encuentra una suscripción con estado `simulada`, `activa` o `active`, no guarda el lead, incluso si la suscripción no tiene asociado un `user_id`. Las suscripciones canceladas, vencidas o inactivas no se consideran activas.
