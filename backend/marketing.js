@@ -242,7 +242,7 @@ function registerMarketingRoutes(app, pool) {
     const subscriptionFilters = [from, to];
     const subscriptionFilterSql = addDimensionFilters(subscriptionFilters, { source, medium, campaign });
 
-    const [metricsResult, daysResult, sourcesResult, plansResult, funnelResult, optionsResult] = await Promise.all([
+    const [metricsResult, sessionMetricsResult, daysResult, sourcesResult, plansResult, funnelResult, optionsResult] = await Promise.all([
       pool.query(
         `SELECT
           COUNT(*) FILTER (WHERE event_name = 'page_view') AS visits,
@@ -251,6 +251,29 @@ function registerMarketingRoutes(app, pool) {
           COUNT(*) FILTER (WHERE event_name = 'checkout_started') AS checkout_starts,
           COUNT(*) FILTER (WHERE event_name = 'checkout_abandoned') AS abandonments
          FROM events WHERE ${eventWhere}`,
+        filters
+      ),
+      pool.query(
+        `WITH sessions AS (
+           SELECT session_id,
+             COUNT(*) FILTER (WHERE event_name = 'page_view') AS page_views,
+             COUNT(DISTINCT NULLIF(page_path, '')) FILTER (WHERE event_name = 'page_view') AS pages_visited,
+             MAX(
+               CASE WHEN event_name = 'session_end'
+                 AND metadata->>'durationSeconds' ~ '^[0-9]+$'
+               THEN LEAST((metadata->>'durationSeconds')::integer, 86400)
+               END
+             ) AS duration_seconds
+           FROM events
+           WHERE ${eventWhere}
+           GROUP BY session_id
+         )
+         SELECT
+           COUNT(*) FILTER (WHERE page_views > 0) AS sessions,
+           COALESCE(AVG(pages_visited::numeric) FILTER (WHERE page_views > 0), 0) AS pages_per_session,
+           COALESCE(AVG(duration_seconds::numeric) FILTER (WHERE page_views > 0 AND duration_seconds IS NOT NULL), 0) AS avg_duration_seconds,
+           COUNT(*) FILTER (WHERE page_views > 0 AND duration_seconds IS NOT NULL) AS measured_sessions
+         FROM sessions`,
         filters
       ),
       pool.query(
@@ -301,16 +324,20 @@ function registerMarketingRoutes(app, pool) {
         leadsFilters
       ),
       pool.query(
-        `SELECT COUNT(*) AS total FROM subscriptions
+        `SELECT COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE LOWER(BTRIM(status)) IN ('cancelada', 'cancelled', 'canceled')) AS canceled
+         FROM subscriptions
          WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')
          ${subscriptionFilterSql.replace(/^ AND/, 'AND')}`,
         subscriptionFilters
       )
     ]);
     const metric = metricsResult.rows[0];
+    const sessionMetrics = sessionMetricsResult.rows[0];
     const visits = Number(metric.visits);
     const checkoutStarts = Number(metric.checkout_starts);
     const subscriptions = Number(subscriptionsResult.rows[0].total);
+    const canceledSubscriptions = Number(subscriptionsResult.rows[0].canceled);
     const eventCounts = Object.fromEntries(funnelResult.rows.map(row => [row.event_name, Number(row.total)]));
     const leads = Number(leadsResult.rows[0].total);
     const convertedFilters = [from, to];
@@ -336,12 +363,18 @@ function registerMarketingRoutes(app, pool) {
       metrics: {
         visits,
         visitors: Number(metric.visitors),
+        avgDurationSeconds: Number(sessionMetrics.avg_duration_seconds),
+        measuredSessions: Number(sessionMetrics.measured_sessions),
+        pagesPerSession: Number(sessionMetrics.pages_per_session),
         leads,
         ctaClicks: Number(metric.cta_clicks),
         checkoutStarts,
         subscriptions,
         conversionRate: visits ? subscriptions / visits * 100 : 0,
         abandonmentRate: checkoutStarts ? Number(metric.abandonments) / checkoutStarts * 100 : 0,
+        canceledSubscriptions,
+        notCanceledSubscriptions: subscriptions - canceledSubscriptions,
+        cancellationRate: subscriptions ? canceledSubscriptions / subscriptions * 100 : 0,
         ctaRate: visits ? Number(metric.cta_clicks) / visits * 100 : 0,
         abandonments: Number(metric.abandonments),
         leadConversionRate: leads ? Number(convertedLeads.rows[0].total) / leads * 100 : 0
@@ -447,6 +480,7 @@ function registerMarketingRoutes(app, pool) {
               metadata->>'newBagSize' AS new_bag_size,
               metadata->>'newFrequencyDays' AS new_frequency_days,
               metadata->>'subscriptionId' AS subscription_id,
+              metadata->>'durationSeconds' AS duration_seconds,
               created_at
        FROM events WHERE ${filters.join(' AND ')}
        ORDER BY created_at DESC LIMIT $${values.length}`,
@@ -539,13 +573,14 @@ function registerMarketingRoutes(app, pool) {
                 metadata->>'newPlanName' AS new_plan_name,
                 metadata->>'newBagSize' AS new_bag_size,
                 metadata->>'newFrequencyDays' AS new_frequency_days,
+                metadata->>'durationSeconds' AS duration_seconds,
                 metadata->>'subscriptionId' AS subscription_id, created_at
          FROM events WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${eventFilterSql}${dimensionSql}
          ORDER BY created_at DESC LIMIT 10000`,
         values
       );
       rows = result.rows;
-      columns = ['event_name', 'session_id', 'page_path', 'plan_id', 'user_id', 'email', 'plan_name', 'bag_size', 'frequency_days', 'previous_plan_name', 'previous_bag_size', 'previous_frequency_days', 'new_plan_name', 'new_bag_size', 'new_frequency_days', 'subscription_id', 'source', 'medium', 'campaign', 'gclid', 'fbclid', 'created_at'].map(key => ({ key, label: key }));
+      columns = ['event_name', 'session_id', 'page_path', 'plan_id', 'user_id', 'email', 'plan_name', 'bag_size', 'frequency_days', 'previous_plan_name', 'previous_bag_size', 'previous_frequency_days', 'new_plan_name', 'new_bag_size', 'new_frequency_days', 'subscription_id', 'duration_seconds', 'source', 'medium', 'campaign', 'gclid', 'fbclid', 'created_at'].map(key => ({ key, label: key }));
     } else if (type === 'subscriptions') {
       const values = [from, to];
       const plan = textFilter(req.query.plan, 40);
@@ -578,11 +613,35 @@ function registerMarketingRoutes(app, pool) {
         `SELECT
           (SELECT COUNT(*) FROM events WHERE event_name = 'page_view' AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}) AS visits,
           (SELECT COUNT(*) FROM leads WHERE consent = TRUE AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${leadDimensions}) AS leads,
-          (SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${subscriptionDimensions}) AS subscriptions`,
+          (SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${subscriptionDimensions}) AS subscriptions,
+          (SELECT COUNT(*) FROM subscriptions WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${subscriptionDimensions}
+             AND LOWER(BTRIM(status)) IN ('cancelada', 'cancelled', 'canceled')) AS canceled_subscriptions,
+          (SELECT COALESCE(AVG(duration_seconds), 0) FROM (
+             SELECT MAX(CASE WHEN metadata->>'durationSeconds' ~ '^[0-9]+$'
+               THEN LEAST((metadata->>'durationSeconds')::integer, 86400) END) AS duration_seconds
+             FROM events WHERE event_name = 'session_end'
+               AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}
+             GROUP BY session_id
+           ) sessions WHERE duration_seconds IS NOT NULL) AS avg_duration_seconds,
+          (SELECT COALESCE(AVG(pages_visited), 0) FROM (
+             SELECT session_id, COUNT(DISTINCT NULLIF(page_path, '')) AS pages_visited
+             FROM events WHERE event_name = 'page_view'
+               AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${visitDimensions}
+             GROUP BY session_id
+           ) sessions) AS pages_per_session`,
         visitValues
       );
-      rows = [{ from, to, ...result.rows[0] }];
-      columns = ['from', 'to', 'visits', 'leads', 'subscriptions'].map(key => ({ key, label: key }));
+      const metrics = result.rows[0];
+      const subscriptions = Number(metrics.subscriptions);
+      const canceledSubscriptions = Number(metrics.canceled_subscriptions);
+      rows = [{
+        from,
+        to,
+        ...metrics,
+        not_canceled_subscriptions: subscriptions - canceledSubscriptions,
+        cancellation_rate: subscriptions ? canceledSubscriptions / subscriptions * 100 : 0
+      }];
+      columns = ['from', 'to', 'visits', 'leads', 'subscriptions', 'avg_duration_seconds', 'pages_per_session', 'canceled_subscriptions', 'not_canceled_subscriptions', 'cancellation_rate'].map(key => ({ key, label: key }));
     } else {
       const error = new Error('Tipo de exportación no válido.');
       error.status = 400;

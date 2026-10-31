@@ -71,6 +71,10 @@
           <article class="metric-card"><span>Conversión sobre visitas</span><strong id="metricConversion">—</strong><small>Suscripciones ÷ visitas</small></article>
           <article class="metric-card"><span>CTR interno</span><strong id="metricCtr">—</strong><small>Clics en planes ÷ visitas</small></article>
           <article class="metric-card"><span>Abandono identificable</span><strong id="metricAbandonment">—</strong><small id="metricAbandonmentCount">Sin procesos abandonados</small></article>
+          <article class="metric-card"><span>Tiempo promedio en el sitio</span><strong id="metricAvgDuration">—</strong><small id="metricMeasuredSessions">Duración medida al salir del sitio</small></article>
+          <article class="metric-card"><span>Páginas por sesión</span><strong id="metricPagesPerSession">—</strong><small>Rutas distintas vistas por sesión</small></article>
+          <article class="metric-card"><span>Solicitudes canceladas</span><strong id="metricCancellationRate">—</strong><small id="metricCancellationCount">De las solicitudes creadas en el período</small></article>
+          <article class="metric-card"><span>Solicitudes no canceladas</span><strong id="metricNotCanceled">—</strong><small>Incluye solicitudes con estado simulado</small></article>
         </div>
         <div class="chart-grid">
           <article class="panel-card chart-card"><div class="panel-heading"><div><h3>Visitas y conversiones</h3><p>Evolución diaria en el rango seleccionado</p></div><div class="legend"><span><i class="legend-visits"></i>Visitas</span><span><i class="legend-subs"></i>Suscripciones</span></div></div><canvas id="trendChart" aria-label="Gráfico de visitas y suscripciones por día"></canvas><p class="chart-empty hidden" id="chartEmpty">No hay datos en este rango de fechas.</p></article>
@@ -84,7 +88,7 @@
           <article class="panel-card"><div class="panel-heading"><div><h3>Preferencias de entrega</h3><p>Tamaño y frecuencia de suscripciones registradas</p></div></div><div id="optionList" class="rank-list"></div></article>
           <article class="panel-card"><div class="panel-heading"><div><h3>Conversión de leads</h3><p>Leads y suscripciones asociados a la misma cuenta</p></div></div><div class="lead-conversion"><strong id="leadConversionRate">—</strong><span>de los leads del período</span></div></article>
         </div>
-        <div class="note-banner">Los visitantes identificables se estiman con sesiones del navegador. Una persona puede tener varias sesiones. CAC y LTV no se muestran: no existen datos de inversión ni ingresos reales.</div>
+        <div class="note-banner">La duración se estima al salir del sitio y solo cuenta sesiones que enviaron ese evento; las páginas por sesión son rutas distintas (la landing actual es de una sola página). Las solicitudes son simuladas: la cancelación mide solicitudes marcadas como canceladas, no retención de clientes de pago. CAC y LTV no se muestran: no existen datos de inversión ni ingresos reales.</div>
       </section>
 
       <section class="page-section hidden" id="section-campaigns">
@@ -101,8 +105,8 @@
 
       <section class="page-section hidden" id="section-events">
         <div class="section-intro"><div><h2>Comportamiento</h2><p>Interacciones de la landing y cambios de suscripción registrados en el backend.</p></div><button class="button button-outline export-button" data-export="events">Exportar eventos CSV</button></div>
-        <div class="table-tools"><label>Tipo de evento<select id="eventType"><option value="">Todos los eventos</option><option value="page_view">Visita</option><option value="plan_selected">Selección de plan / CTA</option><option value="checkout_started">Inicio de suscripción</option><option value="checkout_abandoned">Abandono</option><option value="subscription_confirmed">Suscripción confirmada</option><option value="subscription_updated">Plan actualizado</option><option value="subscription_cancelled">Plan cancelado</option><option value="lead_captured">Lead capturado</option></select></label></div>
-        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Cuenta / sesión</th><th>Plan / cambio</th><th>Fuente / campaña</th><th>Fecha</th></tr></thead><tbody id="eventRows"></tbody></table></div></div>
+        <div class="table-tools"><label>Tipo de evento<select id="eventType"><option value="">Todos los eventos</option><option value="page_view">Visita</option><option value="plan_selected">Selección de plan / CTA</option><option value="checkout_started">Inicio de suscripción</option><option value="checkout_abandoned">Abandono</option><option value="subscription_confirmed">Suscripción confirmada</option><option value="subscription_updated">Plan actualizado</option><option value="subscription_cancelled">Plan cancelado</option><option value="lead_captured">Lead capturado</option><option value="session_end">Fin de sesión</option></select></label></div>
+        <div class="panel-card table-panel"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Cuenta / sesión</th><th>Plan / cambio</th><th>Duración</th><th>Fuente / campaña</th><th>Fecha</th></tr></thead><tbody id="eventRows"></tbody></table></div></div>
       </section>
 
       <section class="page-section hidden" id="section-subscriptions">

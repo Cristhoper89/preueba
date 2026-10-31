@@ -5,6 +5,7 @@
     explorador: { name: 'Dúo Explorador', description: 'Dos perfiles para descubrir nuevos favoritos.', base: 69900, baseSize: '500 g' },
     reserva: { name: 'Reserva de la Casa', description: 'Para quienes hacen del café su gran ritual.', base: 109900, baseSize: '1 kg' }
   };
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
   const $ = selector => document.querySelector(selector);
   const checkout = $('#checkout');
   const sessionId = getSessionId();
@@ -31,13 +32,56 @@
     return Math.round((plans[selectedPlan].base * factors[$('#bagSize').value] / factors[plans[selectedPlan].baseSize]) / 100) * 100;
   };
   function getSessionId() {
+    const now = Date.now();
     let id = sessionStorage.getItem('aurora_session');
-    if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : `s-${Date.now()}-${Math.random().toString(36).slice(2)}`); sessionStorage.setItem('aurora_session', id); }
+    const startedAt = Number(sessionStorage.getItem('aurora_session_started_at'));
+    const lastActivityAt = Number(sessionStorage.getItem('aurora_session_last_activity_at'));
+    if (!id || !Number.isFinite(startedAt) || !lastActivityAt || now - lastActivityAt > SESSION_TIMEOUT_MS) {
+      id = crypto.randomUUID ? crypto.randomUUID() : `s-${now}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem('aurora_session', id);
+      sessionStorage.setItem('aurora_session_started_at', String(now));
+    }
+    sessionStorage.setItem('aurora_session_last_activity_at', String(now));
     return id;
   }
+  const sessionStartedAt = Number(sessionStorage.getItem('aurora_session_started_at'));
+  let sessionEndSent = false;
+  let lastActivityWriteAt = 0;
+  function recordActivity() {
+    const now = Date.now();
+    if (now - lastActivityWriteAt < 30000) return;
+    lastActivityWriteAt = now;
+    sessionStorage.setItem('aurora_session_last_activity_at', String(now));
+  }
+  document.addEventListener('pointerdown', recordActivity, { passive: true });
+  document.addEventListener('keydown', recordActivity);
+  document.addEventListener('scroll', recordActivity, { passive: true });
   function track(eventName, planId = '', metadata = {}) {
+    recordActivity();
     const payload = { sessionId, eventName, pagePath: location.pathname, planId, ...attribution, metadata };
     fetch(apiUrl('/api/events'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(() => {});
+  }
+  function endSession() {
+    if (sessionEndSent) return;
+    sessionEndSent = true;
+    const durationSeconds = Math.min(86400, Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000)));
+    const payload = {
+      sessionId,
+      eventName: 'session_end',
+      pagePath: location.pathname,
+      ...attribution,
+      metadata: { durationSeconds }
+    };
+    const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    if (!navigator.sendBeacon(apiUrl('/api/events'), body)) {
+      fetch(apiUrl('/api/events'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => {});
+    }
   }
   function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
   function updateSummary() {
@@ -326,5 +370,6 @@
   document.querySelectorAll('.desktop-nav a').forEach(link => link.addEventListener('click', () => { $('.desktop-nav').classList.remove('mobile-open'); menuButton.setAttribute('aria-expanded', 'false'); }));
   $('#year').textContent = new Date().getFullYear();
   track('page_view', '', { referrer: document.referrer || 'direct' });
+  window.addEventListener('pagehide', endSession);
   checkCustomerSession();
 })();

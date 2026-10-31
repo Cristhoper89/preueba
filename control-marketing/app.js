@@ -11,11 +11,20 @@
     subscription_confirmed: 'Suscripción confirmada',
     subscription_updated: 'Plan actualizado',
     subscription_cancelled: 'Plan cancelado',
-    lead_captured: 'Lead capturado'
+    lead_captured: 'Lead capturado',
+    session_end: 'Fin de sesión'
   };
   const state = { user: null, section: 'dashboard', dashboard: null };
   const numberFormat = new Intl.NumberFormat('es-CO');
   const percentFormat = value => `${Number(value || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 })}%`;
+  const durationFormat = value => {
+    const seconds = Math.round(Number(value) || 0);
+    if (seconds < 60) return `${seconds} s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes} min ${remainingSeconds} s`;
+    return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  };
   const formatDate = value => value ? new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
   const formatMoney = value => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value) || 0);
 
@@ -144,6 +153,13 @@
     state.dashboard = data;
     $('#metricVisits').textContent = numberFormat.format(data.metrics.visits);
     $('#metricVisitors').textContent = numberFormat.format(data.metrics.visitors);
+    $('#metricAvgDuration').textContent = data.metrics.measuredSessions
+      ? durationFormat(data.metrics.avgDurationSeconds)
+      : '—';
+    $('#metricMeasuredSessions').textContent = `${numberFormat.format(data.metrics.measuredSessions)} sesiones con duración medida`;
+    $('#metricPagesPerSession').textContent = data.metrics.visitors
+      ? Number(data.metrics.pagesPerSession || 0).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 2 })
+      : '—';
     $('#metricLeads').textContent = numberFormat.format(data.metrics.leads);
     $('#metricCta').textContent = numberFormat.format(data.metrics.ctaClicks);
     $('#metricStarts').textContent = numberFormat.format(data.metrics.checkoutStarts);
@@ -152,6 +168,11 @@
     $('#metricCtr').textContent = percentFormat(data.metrics.ctaRate);
     $('#metricAbandonment').textContent = percentFormat(data.metrics.abandonmentRate);
     $('#metricAbandonmentCount').textContent = `${numberFormat.format(data.metrics.abandonments)} procesos identificados`;
+    $('#metricCancellationRate').textContent = data.metrics.subscriptions
+      ? percentFormat(data.metrics.cancellationRate)
+      : '—';
+    $('#metricCancellationCount').textContent = `${numberFormat.format(data.metrics.canceledSubscriptions)} solicitudes canceladas`;
+    $('#metricNotCanceled').textContent = numberFormat.format(data.metrics.notCanceledSubscriptions);
     $('#leadConversionRate').textContent = percentFormat(data.metrics.leadConversionRate);
     drawTrend(data.timeseries);
     renderBars($('#sourceChart'), data.sources, row => row.source, row => row.visits);
@@ -361,6 +382,9 @@
         td.textContent = row.event_name === 'subscription_updated' && previous
           ? `${previous} → ${current}`
           : current || previous || '—';
+      } },
+      { key: 'duration_seconds', render: (td, row) => {
+        td.textContent = row.duration_seconds == null ? '—' : durationFormat(row.duration_seconds);
       } },
       { key: 'campaign', render: (td, row) => { td.textContent = [row.source, row.campaign].filter(Boolean).join(' · ') || '—'; } },
       { key: 'created_at', render: (td, row) => { td.textContent = formatDate(row.created_at); } }

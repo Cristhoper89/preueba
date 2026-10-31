@@ -76,6 +76,7 @@ El panel usa sesiones aleatorias persistidas como hash en PostgreSQL, cookies `H
 - Captura opcional de correo mediante modal de intención de salida, con consentimiento.
 - Tracking propio en PostgreSQL: `page_view`, `plan_selected`, `checkout_started`, `checkout_abandoned`, `subscription_confirmed`, `subscription_updated`, `subscription_cancelled` y `lead_captured`. Las actualizaciones y cancelaciones se registran desde el backend en la misma transacción del cambio de suscripción.
 - Captura de UTM y de origen básico (`gclid` / `fbclid`) sin cargar píxeles publicitarios.
+- El panel estima duración de sesión cuando el navegador abandona la página y muestra rutas distintas por sesión; las sesiones nuevas comienzan tras 30 minutos de inactividad. La cancelación se calcula sobre solicitudes creadas en el período y marcadas como canceladas. Las solicitudes actuales son simuladas, así que no representan retención de suscripciones con pagos reales.
 - Panel de marketing en `../control-marketing`, protegido por autenticación y con dashboard, campañas, leads, eventos, suscripciones y exportaciones CSV.
 - La migración de `schema.sql` agrega usuarios, roles, sesiones, auditoría e índices del panel. Puede ejecutarse de nuevo de forma segura para actualizar una base existente.
 
